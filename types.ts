@@ -50,14 +50,6 @@ export interface NewTaskState {
   tagInput: string;
 }
 
-export interface User {
-  id: string;
-  name: string;
-  color: string;
-}
-
-export const USERS_KEY = "taskmanager-users";
-export const CURRENT_USER_KEY = "taskmanager-current-user";
 export const STORAGE_KEY = "taskmanager-v2";
 
 export const REMINDER_OPTIONS = [

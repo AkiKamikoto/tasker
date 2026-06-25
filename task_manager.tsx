@@ -1,16 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
+import { Session } from "@supabase/supabase-js";
 import {
   Project,
   Task,
-  User,
   DEFAULT_WORK_PROJECT,
   DEFAULT_PERSONAL_PROJECT,
-  USERS_KEY,
-  CURRENT_USER_KEY,
   STATUS_CONFIG,
   DifficultyKey,
 } from "./types";
-import { getStatus, storage, userStorageKey } from "./utils";
+import { getStatus } from "./utils";
+import { supabase } from "./lib/supabase";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -19,23 +18,71 @@ import TaskItem from "./components/TaskItem";
 import TaskModal from "./components/TaskModal";
 import ProjectModal from "./components/ProjectModal";
 import TaskSelectModal from "./components/TaskSelectModal";
-import UserSetupModal from "./components/UserSetupModal";
+import AuthModal from "./components/AuthModal";
 
-// Extend window interface for custom storage
-declare global {
-  interface Window {
-    storage: {
-      get: (key: string) => Promise<{ value: string } | null>;
-      set: (key: string, value: string) => Promise<void>;
-    };
-  }
+// ─── DB mappers ───────────────────────────────────────────────────────────────
+
+function dbToTask(row: any): Task {
+  return {
+    id: row.id,
+    title: row.title,
+    desc: row.description,
+    dueDate: row.due_date,
+    reminder: row.reminder,
+    projectId: row.project_id,
+    difficulty: row.difficulty,
+    estH: row.est_h,
+    estM: row.est_m,
+    tags: row.tags || [],
+    completed: row.completed,
+    notified: row.notified,
+    pomodoros: row.pomodoros || 0,
+  };
 }
 
+function dbToProject(row: any): Project {
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    scope: row.scope as "work" | "personal",
+  };
+}
+
+function taskToDb(task: Task, userId: string) {
+  return {
+    id: task.id,
+    user_id: userId,
+    title: task.title,
+    description: task.desc,
+    due_date: task.dueDate,
+    reminder: task.reminder,
+    project_id: task.projectId,
+    difficulty: task.difficulty,
+    est_h: task.estH,
+    est_m: task.estM,
+    tags: task.tags,
+    completed: task.completed,
+    notified: task.notified,
+    pomodoros: task.pomodoros || 0,
+  };
+}
+
+function projectToDb(project: Project, userId: string) {
+  return {
+    id: project.id,
+    user_id: userId,
+    name: project.name,
+    color: project.color,
+    scope: project.scope,
+  };
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function App() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [showUserSetup, setShowUserSetup] = useState<boolean>(false);
-  const [usersLoaded, setUsersLoaded] = useState<boolean>(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
 
   const [scope, setScope] = useState<"work" | "personal">("work");
   const [projects, setProjects] = useState<Project[]>([
@@ -52,79 +99,79 @@ export default function App() {
   const [filter, setFilter] = useState<string>("all");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  // Pomodoro states
+  // Pomodoro
   const [pomoTaskId, setPomoTaskId] = useState<string | null>(null);
   const [pomoTimeLeft, setPomoTimeLeft] = useState<number>(1500);
   const [pomoIsRunning, setPomoIsRunning] = useState<boolean>(false);
   const [pomoMode, setPomoMode] = useState<"focus" | "shortBreak">("focus");
   const [showPomoSelect, setShowPomoSelect] = useState<boolean>(false);
 
-  // Load users and current user
-  useEffect(() => {
-    (async () => {
-      try {
-        const usersRaw = await storage.get(USERS_KEY);
-        const loadedUsers: User[] = usersRaw ? JSON.parse(usersRaw) : [];
-        setUsers(loadedUsers);
+  // ── Auth ──────────────────────────────────────────────────────────────────
 
-        const currentUserId = await storage.get(CURRENT_USER_KEY);
-        const found = loadedUsers.find((u) => u.id === currentUserId);
-        if (found) {
-          setCurrentUser(found);
-        } else {
-          setShowUserSetup(true);
-        }
-      } catch {
-        setShowUserSetup(true);
-      }
-      setUsersLoaded(true);
-    })();
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoaded(true);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Load tasks/projects for current user
-  useEffect(() => {
-    if (!currentUser) return;
-    setLoaded(false);
-    (async () => {
-      try {
-        const key = userStorageKey(currentUser.id);
-        const r = await storage.get(key);
-        if (r) {
-          const d = JSON.parse(r);
-          const loadedProjects: Project[] = d.projects || [];
-          if (!loadedProjects.some((p) => p.id === "default-work")) {
-            loadedProjects.push(DEFAULT_WORK_PROJECT);
-          }
-          if (!loadedProjects.some((p) => p.id === "default-personal")) {
-            loadedProjects.push(DEFAULT_PERSONAL_PROJECT);
-          }
-          setProjects(loadedProjects);
-          setTasks(d.tasks || []);
-        } else {
-          setProjects([DEFAULT_WORK_PROJECT, DEFAULT_PERSONAL_PROJECT]);
-          setTasks([]);
-        }
-      } catch {}
-      setLoaded(true);
-    })();
-  }, [currentUser]);
+  // ── Load user data ────────────────────────────────────────────────────────
 
-  // Save tasks/projects for current user
   useEffect(() => {
-    if (!loaded || !currentUser) return;
-    storage
-      .set(userStorageKey(currentUser.id), JSON.stringify({ projects, tasks }))
-      .catch(() => {});
-  }, [projects, tasks, loaded, currentUser]);
-
-  // Request notifications permission if available
-  useEffect(() => {
-    if ("Notification" in window) {
-      setNotifPerm(Notification.permission);
+    if (!session) {
+      setTasks([]);
+      setProjects([DEFAULT_WORK_PROJECT, DEFAULT_PERSONAL_PROJECT]);
+      setLoaded(false);
+      return;
     }
+    loadUserData(session.user.id);
+  }, [session?.user.id]);
+
+  const loadUserData = async (userId: string) => {
+    setLoaded(false);
+
+    const [{ data: projectsData }, { data: tasksData }] = await Promise.all([
+      supabase.from("projects").select("*").eq("user_id", userId),
+      supabase.from("tasks").select("*").eq("user_id", userId),
+    ]);
+
+    let loadedProjects: Project[] = (projectsData || []).map(dbToProject);
+
+    // Create default projects for new users
+    const defaultsToCreate: Project[] = [];
+    if (!loadedProjects.some((p) => p.id === "default-work")) {
+      defaultsToCreate.push(DEFAULT_WORK_PROJECT);
+      loadedProjects = [DEFAULT_WORK_PROJECT, ...loadedProjects];
+    }
+    if (!loadedProjects.some((p) => p.id === "default-personal")) {
+      defaultsToCreate.push(DEFAULT_PERSONAL_PROJECT);
+      loadedProjects = [...loadedProjects, DEFAULT_PERSONAL_PROJECT];
+    }
+    if (defaultsToCreate.length > 0) {
+      await supabase
+        .from("projects")
+        .insert(defaultsToCreate.map((p) => projectToDb(p, userId)));
+    }
+
+    setProjects(loadedProjects);
+    setTasks((tasksData || []).map(dbToTask));
+    setLoaded(true);
+  };
+
+  // ── Notifications ─────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if ("Notification" in window) setNotifPerm(Notification.permission);
   }, []);
 
-  // Set up timer for checking reminders
   useEffect(() => {
     const id = setInterval(() => {
       const now = new Date();
@@ -132,14 +179,18 @@ export default function App() {
         prev.map((t) => {
           if (t.completed || t.notified) return t;
           const diff = (new Date(t.dueDate).getTime() - now.getTime()) / 60000;
-          if (
-            diff <= t.reminder &&
-            diff > 0 &&
-            Notification.permission === "granted"
-          ) {
+          if (diff <= t.reminder && diff > 0 && Notification.permission === "granted") {
             new Notification(`⏰ ${t.title}`, {
               body: `Начать через ${Math.round(diff)} мин.`,
             });
+            if (session) {
+              supabase
+                .from("tasks")
+                .update({ notified: true })
+                .eq("id", t.id)
+                .eq("user_id", session.user.id)
+                .then(() => {});
+            }
             return { ...t, notified: true };
           }
           return t;
@@ -147,24 +198,7 @@ export default function App() {
       );
     }, 30000);
     return () => clearInterval(id);
-  }, []);
-
-  const handleSelectUser = (user: User) => {
-    setCurrentUser(user);
-    setShowUserSetup(false);
-    setScope("work");
-    setSelProj("default-work");
-    setFilter("all");
-    storage.set(CURRENT_USER_KEY, user.id).catch(() => {});
-  };
-
-  const handleCreateUser = (name: string, color: string) => {
-    const newUser: User = { id: Date.now() + "", name, color };
-    const updated = [...users, newUser];
-    setUsers(updated);
-    storage.set(USERS_KEY, JSON.stringify(updated)).catch(() => {});
-    handleSelectUser(newUser);
-  };
+  }, [session]);
 
   const reqNotif = async () => {
     if ("Notification" in window) {
@@ -173,23 +207,22 @@ export default function App() {
     }
   };
 
-  // Play a beautiful beep sound using browser Web Audio API
+  // ── Pomodoro ──────────────────────────────────────────────────────────────
+
   const playBeep = (type: "focusEnd" | "breakEnd") => {
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContextClass =
+        window.AudioContext || (window as any).webkitAudioContext;
       const audioCtx = new AudioContextClass();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-
       if (type === "focusEnd") {
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.15);
-
         setTimeout(() => {
           try {
             const osc2 = audioCtx.createOscillator();
@@ -203,7 +236,7 @@ export default function App() {
           } catch {}
         }, 200);
       } else {
-        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.4);
@@ -211,13 +244,10 @@ export default function App() {
     } catch {}
   };
 
-  // Pomodoro timer tick interval effect
   useEffect(() => {
     let interval: any = null;
     if (pomoIsRunning && pomoTimeLeft > 0) {
-      interval = setInterval(() => {
-        setPomoTimeLeft((prev) => prev - 1);
-      }, 1000);
+      interval = setInterval(() => setPomoTimeLeft((p) => p - 1), 1000);
     } else if (pomoIsRunning && pomoTimeLeft === 0) {
       if (pomoMode === "focus") {
         if (pomoTaskId) {
@@ -226,53 +256,52 @@ export default function App() {
               t.id === pomoTaskId ? { ...t, pomodoros: (t.pomodoros || 0) + 1 } : t
             )
           );
+          if (session) {
+            const task = tasks.find((t) => t.id === pomoTaskId);
+            supabase
+              .from("tasks")
+              .update({ pomodoros: (task?.pomodoros || 0) + 1 })
+              .eq("id", pomoTaskId)
+              .eq("user_id", session.user.id)
+              .then(() => {});
+          }
         }
         playBeep("focusEnd");
-        if (Notification.permission === "granted") {
+        if (Notification.permission === "granted")
           new Notification("🍅 Фокус-сессия завершена!", {
             body: "Отличная работа! Время сделать перерыв.",
           });
-        }
         setPomoMode("shortBreak");
-        setPomoTimeLeft(300); // 5 mins
+        setPomoTimeLeft(300);
         setPomoIsRunning(false);
       } else {
         playBeep("breakEnd");
-        if (Notification.permission === "granted") {
+        if (Notification.permission === "granted")
           new Notification("☕️ Перерыв завершен!", {
             body: "Пора возвращаться к задачам.",
           });
-        }
         setPomoMode("focus");
-        setPomoTimeLeft(1500); // 25 mins
+        setPomoTimeLeft(1500);
         setPomoIsRunning(false);
       }
     }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    return () => { if (interval) clearInterval(interval); };
   }, [pomoIsRunning, pomoTimeLeft, pomoMode, pomoTaskId]);
 
-  const handlePomoToggle = () => {
-    setPomoIsRunning((prev) => !prev);
-  };
-
+  const handlePomoToggle = () => setPomoIsRunning((p) => !p);
   const handlePomoReset = () => {
     setPomoIsRunning(false);
     setPomoTimeLeft(pomoMode === "focus" ? 1500 : 300);
   };
-
   const handlePomoSkip = () => {
     setPomoIsRunning(false);
     if (pomoMode === "focus") {
-      if (pomoTaskId) {
+      if (pomoTaskId)
         setTasks((prev) =>
           prev.map((t) =>
             t.id === pomoTaskId ? { ...t, pomodoros: (t.pomodoros || 0) + 1 } : t
           )
         );
-      }
       playBeep("focusEnd");
       setPomoMode("shortBreak");
       setPomoTimeLeft(300);
@@ -282,16 +311,15 @@ export default function App() {
       setPomoTimeLeft(1500);
     }
   };
-
   const handleStartPomoForTask = (task: Task) => {
     setPomoTaskId(task.id);
     setPomoMode("focus");
     setPomoTimeLeft(1500);
     setPomoIsRunning(true);
-    if (Notification.permission === "default") {
-      Notification.requestPermission();
-    }
+    if (Notification.permission === "default") Notification.requestPermission();
   };
+
+  // ── Scope ─────────────────────────────────────────────────────────────────
 
   const handleScopeChange = (newScope: "work" | "personal") => {
     setScope(newScope);
@@ -299,7 +327,9 @@ export default function App() {
     setSelProj(newScope === "work" ? "default-work" : "default-personal");
   };
 
-  const handleAddTask = (taskData: {
+  // ── Task CRUD ─────────────────────────────────────────────────────────────
+
+  const handleAddTask = async (taskData: {
     title: string;
     desc: string;
     date: string;
@@ -310,32 +340,33 @@ export default function App() {
     estM: number;
     tags: string[];
   }) => {
-    setTasks((prev) => [
-      ...prev,
-      {
-        id: Date.now() + "",
-        title: taskData.title,
-        desc: taskData.desc,
-        dueDate: taskData.date ? `${taskData.date}T${taskData.time || "00:00"}` : "",
-        reminder: taskData.reminder,
-        projectId:
-          selProj === "__all__"
-            ? scope === "work"
-              ? "default-work"
-              : "default-personal"
-            : selProj,
-        difficulty: taskData.difficulty,
-        estH: taskData.estH,
-        estM: taskData.estM,
-        tags: taskData.tags,
-        completed: false,
-        notified: false,
-      },
-    ]);
+    const newTask: Task = {
+      id: Date.now() + "",
+      title: taskData.title,
+      desc: taskData.desc,
+      dueDate: taskData.date ? `${taskData.date}T${taskData.time || "00:00"}` : "",
+      reminder: taskData.reminder,
+      projectId:
+        selProj === "__all__"
+          ? scope === "work"
+            ? "default-work"
+            : "default-personal"
+          : selProj,
+      difficulty: taskData.difficulty,
+      estH: taskData.estH,
+      estM: taskData.estM,
+      tags: taskData.tags,
+      completed: false,
+      notified: false,
+    };
+    setTasks((prev) => [...prev, newTask]);
     setShowTask(false);
+    if (session) {
+      await supabase.from("tasks").insert(taskToDb(newTask, session.user.id));
+    }
   };
 
-  const handleUpdateTask = (
+  const handleUpdateTask = async (
     id: string,
     taskData: {
       title: string;
@@ -349,51 +380,107 @@ export default function App() {
       tags: string[];
     }
   ) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              title: taskData.title,
-              desc: taskData.desc,
-              dueDate: taskData.date ? `${taskData.date}T${taskData.time || "00:00"}` : "",
-              reminder: taskData.reminder,
-              difficulty: taskData.difficulty,
-              estH: taskData.estH,
-              estM: taskData.estM,
-              tags: taskData.tags,
-              notified: false,
-            }
-          : t
-      )
-    );
+    const patch = {
+      title: taskData.title,
+      desc: taskData.desc,
+      dueDate: taskData.date ? `${taskData.date}T${taskData.time || "00:00"}` : "",
+      reminder: taskData.reminder,
+      difficulty: taskData.difficulty,
+      estH: taskData.estH,
+      estM: taskData.estM,
+      tags: taskData.tags,
+      notified: false,
+    };
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
     setEditingTask(null);
+    if (session) {
+      await supabase
+        .from("tasks")
+        .update({
+          title: patch.title,
+          description: patch.desc,
+          due_date: patch.dueDate,
+          reminder: patch.reminder,
+          difficulty: patch.difficulty,
+          est_h: patch.estH,
+          est_m: patch.estM,
+          tags: patch.tags,
+          notified: false,
+        })
+        .eq("id", id)
+        .eq("user_id", session.user.id);
+    }
   };
 
-  const handleAddProj = (name: string, color: string, scopeVal: "work" | "personal") => {
-    const p = { id: Date.now() + "", name, color, scope: scopeVal };
+  const handleToggleTaskCompleted = async (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    const newVal = !task?.completed;
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+    );
+    if (session) {
+      await supabase
+        .from("tasks")
+        .update({ completed: newVal })
+        .eq("id", id)
+        .eq("user_id", session.user.id);
+    }
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+    if (session) {
+      await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", session.user.id);
+    }
+  };
+
+  // ── Project CRUD ──────────────────────────────────────────────────────────
+
+  const handleAddProj = async (
+    name: string,
+    color: string,
+    scopeVal: "work" | "personal"
+  ) => {
+    const p: Project = { id: Date.now() + "", name, color, scope: scopeVal };
     setProjects((prev) => [...prev, p]);
     setShowProj(false);
     setSelProj(p.id);
+    if (session) {
+      await supabase.from("projects").insert(projectToDb(p, session.user.id));
+    }
   };
 
-  const delProj = (id: string) => {
+  const delProj = async (id: string) => {
     if (id === "default-work" || id === "default-personal") return;
-    setProjects((p) => p.filter((x) => x.id !== id));
-    setTasks((t) => t.filter((x) => x.projectId !== id));
+    setProjects((prev) => prev.filter((x) => x.id !== id));
+    setTasks((prev) => prev.filter((x) => x.projectId !== id));
     setSelProj(scope === "work" ? "default-work" : "default-personal");
+    if (session) {
+      await Promise.all([
+        supabase.from("tasks").delete().eq("project_id", id).eq("user_id", session.user.id),
+        supabase.from("projects").delete().eq("id", id).eq("user_id", session.user.id),
+      ]);
+    }
   };
+
+  // ── Derived state ─────────────────────────────────────────────────────────
 
   const isStats = selProj === "__stats__";
   const isAllView = selProj === "__all__";
 
-  const activeProjectIds = useMemo(() => {
-    return projects.filter((p) => p.scope === scope).map((p) => p.id);
-  }, [projects, scope]);
+  const activeProjectIds = useMemo(
+    () => projects.filter((p) => p.scope === scope).map((p) => p.id),
+    [projects, scope]
+  );
 
-  const scopeTasks = useMemo(() => {
-    return tasks.filter((t) => activeProjectIds.includes(t.projectId));
-  }, [tasks, activeProjectIds]);
+  const scopeTasks = useMemo(
+    () => tasks.filter((t) => activeProjectIds.includes(t.projectId)),
+    [tasks, activeProjectIds]
+  );
 
   const proj = useMemo(() => {
     if (isStats) return { id: "__stats__", name: "Статистика", color: scope === "work" ? "#3b82f6" : "#ec4899" };
@@ -401,49 +488,62 @@ export default function App() {
     return projects.find((p) => p.id === selProj);
   }, [projects, selProj, isStats, isAllView, scope]);
 
-  // Memoize counts and tasks calculations
   const viewTasks = useMemo(() => {
     if (isAllView || isStats) return scopeTasks;
     return scopeTasks.filter((t) => t.projectId === selProj);
   }, [scopeTasks, selProj, isAllView, isStats]);
 
-  const allFiltered = useMemo(() => {
-    return isStats ? scopeTasks : viewTasks;
-  }, [scopeTasks, viewTasks, isStats]);
+  const allFiltered = useMemo(
+    () => (isStats ? scopeTasks : viewTasks),
+    [scopeTasks, viewTasks, isStats]
+  );
 
-  const counts = useMemo(() => {
-    return {
-      all: allFiltered.length,
-      upcoming: allFiltered.filter((t) => getStatus(t) === "upcoming").length,
-      urgent: allFiltered.filter((t) => getStatus(t) === "urgent").length,
-      overdue: allFiltered.filter((t) => getStatus(t) === "overdue").length,
-      completed: allFiltered.filter((t) => getStatus(t) === "completed").length,
-    };
-  }, [allFiltered]);
+  const counts = useMemo(() => ({
+    all: allFiltered.length,
+    upcoming: allFiltered.filter((t) => getStatus(t) === "upcoming").length,
+    urgent: allFiltered.filter((t) => getStatus(t) === "urgent").length,
+    overdue: allFiltered.filter((t) => getStatus(t) === "overdue").length,
+    completed: allFiltered.filter((t) => getStatus(t) === "completed").length,
+  }), [allFiltered]);
 
-  const filteredTasks = useMemo(() => {
-    if (filter === "all") return allFiltered;
-    return allFiltered.filter((t) => getStatus(t) === filter);
-  }, [allFiltered, filter]);
+  const filteredTasks = useMemo(
+    () => (filter === "all" ? allFiltered : allFiltered.filter((t) => getStatus(t) === filter)),
+    [allFiltered, filter]
+  );
 
-  const sortedTasks = useMemo(() => {
-    return [...filteredTasks].sort((a, b) => {
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    });
-  }, [filteredTasks]);
+  const sortedTasks = useMemo(
+    () =>
+      [...filteredTasks].sort((a, b) => {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }),
+    [filteredTasks]
+  );
 
-  const handleToggleTaskCompleted = (id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (!authLoaded) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          height: "100vh",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#f8fafc",
+          fontFamily: "Inter,sans-serif",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: 14 }}>Загрузка...</div>
+      </div>
     );
-  };
+  }
 
-  const handleDeleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-  };
+  if (!session) {
+    return <AuthModal />;
+  }
 
   return (
     <div
@@ -455,24 +555,20 @@ export default function App() {
         overflow: "hidden",
       }}
     >
-      {/* SIDEBAR */}
-      {currentUser && (
-        <Sidebar
-          projects={projects}
-          tasks={tasks}
-          selProj={selProj}
-          setSelProj={setSelProj}
-          setFilter={setFilter}
-          sidebarOpen={sidebarOpen}
-          setShowProj={setShowProj}
-          scope={scope}
-          setScope={handleScopeChange}
-          currentUser={currentUser}
-          onSwitchUser={() => setShowUserSetup(true)}
-        />
-      )}
+      <Sidebar
+        projects={projects}
+        tasks={tasks}
+        selProj={selProj}
+        setSelProj={setSelProj}
+        setFilter={setFilter}
+        sidebarOpen={sidebarOpen}
+        setShowProj={setShowProj}
+        scope={scope}
+        setScope={handleScopeChange}
+        userEmail={session.user.email || ""}
+        onSignOut={() => supabase.auth.signOut()}
+      />
 
-      {/* MAIN CONTENT AREA */}
       <div
         style={{
           flex: 1,
@@ -482,7 +578,6 @@ export default function App() {
           minWidth: 0,
         }}
       >
-        {/* HEADER */}
         <Header
           projName={proj?.name}
           projColor={proj?.color}
@@ -504,12 +599,13 @@ export default function App() {
           onPomoSelectClick={() => setShowPomoSelect(true)}
         />
 
-        {/* VIEW CONDITIONAL RENDERING */}
         {isStats ? (
-          <StatsView tasks={scopeTasks} projects={projects.filter((p) => p.scope === scope)} />
+          <StatsView
+            tasks={scopeTasks}
+            projects={projects.filter((p) => p.scope === scope)}
+          />
         ) : (
           <>
-            {/* FILTER TABS */}
             <div
               style={{
                 display: "flex",
@@ -533,9 +629,7 @@ export default function App() {
                 const activeColor =
                   key === "all"
                     ? proj?.color || "#6366f1"
-                    : STATUS_CONFIG[key as keyof typeof STATUS_CONFIG]?.color ||
-                      "#6366f1";
-
+                    : STATUS_CONFIG[key as keyof typeof STATUS_CONFIG]?.color || "#6366f1";
                 return (
                   <button
                     key={key}
@@ -559,17 +653,16 @@ export default function App() {
               })}
             </div>
 
-            {/* TASK LIST */}
             <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-              {sortedTasks.length === 0 ? (
+              {!loaded ? (
+                <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
+                  <div style={{ fontSize: 14 }}>Загрузка задач...</div>
+                </div>
+              ) : sortedTasks.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
                   <div style={{ fontSize: 52, marginBottom: 12 }}>📝</div>
-                  <p style={{ fontSize: 15, margin: "0 0 6px", fontWeight: 500 }}>
-                    Нет задач
-                  </p>
-                  <p style={{ fontSize: 13, margin: 0 }}>
-                    Нажмите «+ Задача» чтобы добавить
-                  </p>
+                  <p style={{ fontSize: 15, margin: "0 0 6px", fontWeight: 500 }}>Нет задач</p>
+                  <p style={{ fontSize: 13, margin: 0 }}>Нажмите «+ Задача» чтобы добавить</p>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -593,19 +686,12 @@ export default function App() {
         )}
       </div>
 
-      {/* MODALS */}
       {(showTask || editingTask) && (
         <TaskModal
-          onClose={() => {
-            setShowTask(false);
-            setEditingTask(null);
-          }}
+          onClose={() => { setShowTask(false); setEditingTask(null); }}
           onAddTask={(taskData) => {
-            if (editingTask) {
-              handleUpdateTask(editingTask.id, taskData);
-            } else {
-              handleAddTask(taskData);
-            }
+            if (editingTask) handleUpdateTask(editingTask.id, taskData);
+            else handleAddTask(taskData);
           }}
           projColor={proj?.color}
           taskToEdit={editingTask || undefined}
@@ -617,14 +703,6 @@ export default function App() {
           onClose={() => setShowProj(false)}
           onAddProj={handleAddProj}
           scope={scope}
-        />
-      )}
-
-      {(showUserSetup || !currentUser) && usersLoaded && (
-        <UserSetupModal
-          users={users}
-          onSelect={handleSelectUser}
-          onCreate={handleCreateUser}
         />
       )}
 

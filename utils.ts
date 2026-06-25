@@ -41,30 +41,4 @@ export const inp = (extra: any = {}) => ({
   ...extra,
 });
 
-export const storage = {
-  get: async (key: string): Promise<string | null> => {
-    if (typeof window !== "undefined" && "storage" in window && window.storage) {
-      const r = await window.storage.get(key);
-      return r ? r.value : null;
-    }
-    return localStorage.getItem(key);
-  },
-  set: async (key: string, value: string): Promise<void> => {
-    if (typeof window !== "undefined" && "storage" in window && window.storage) {
-      await window.storage.set(key, value);
-    } else {
-      localStorage.setItem(key, value);
-    }
-  },
-  remove: async (key: string): Promise<void> => {
-    if (typeof window !== "undefined" && "storage" in window && window.storage) {
-      // custom storage may not support remove; fall through to localStorage
-    }
-    localStorage.removeItem(key);
-  },
-};
-
-export function userStorageKey(userId: string): string {
-  return `taskmanager-v2-${userId}`;
-}
 

@@ -16,5 +16,5 @@
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["task_manager.tsx", "types.ts", "utils.ts", "components/**/*"]
+  "include": ["task_manager.tsx", "types.ts", "utils.ts", "main.tsx", "components/**/*", "lib/**/*"]
 }

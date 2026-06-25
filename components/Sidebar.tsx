@@ -1,5 +1,5 @@
 
-import { Project, Task, User } from "../types";
+import { Project, Task } from "../types";
 
 interface SidebarProps {
   projects: Project[];
@@ -11,8 +11,8 @@ interface SidebarProps {
   setShowProj: (show: boolean) => void;
   scope: "work" | "personal";
   setScope: (scope: "work" | "personal") => void;
-  currentUser: User;
-  onSwitchUser: () => void;
+  userEmail: string;
+  onSignOut: () => void;
 }
 
 export default function Sidebar({
@@ -25,8 +25,8 @@ export default function Sidebar({
   setShowProj,
   scope,
   setScope,
-  currentUser,
-  onSwitchUser,
+  userEmail,
+  onSignOut,
 }: SidebarProps) {
   const handleSelectView = (id: string) => {
     setSelProj(id);
@@ -235,8 +235,8 @@ export default function Sidebar({
 
         {/* Current user */}
         <button
-          onClick={onSwitchUser}
-          title="Сменить пользователя"
+          onClick={onSignOut}
+          title="Выйти"
           style={{
             width: "100%",
             padding: "8px 10px",
@@ -255,7 +255,7 @@ export default function Sidebar({
               width: 26,
               height: 26,
               borderRadius: "50%",
-              background: currentUser.color,
+              background: "#6366f1",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -265,12 +265,12 @@ export default function Sidebar({
               flexShrink: 0,
             }}
           >
-            {currentUser.name[0].toUpperCase()}
+            {userEmail[0]?.toUpperCase() || "?"}
           </div>
           <span style={{ fontSize: 12.5, color: "#cbd5e1", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {currentUser.name}
+            {userEmail}
           </span>
-          <span style={{ fontSize: 11, color: "#64748b" }}>сменить</span>
+          <span style={{ fontSize: 11, color: "#64748b" }}>выйти</span>
         </button>
       </div>
     </div>
