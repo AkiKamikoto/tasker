@@ -23,7 +23,6 @@ import TaskModal from "./components/TaskModal";
 import ProjectModal from "./components/ProjectModal";
 import TaskSelectModal from "./components/TaskSelectModal";
 import AuthModal from "./components/AuthModal";
-import AssistantModal from "./components/AssistantModal";
 import Toast from "./components/Toast";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -49,7 +48,6 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [filter, setFilter] = useState<string>("all");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [showAssistant, setShowAssistant] = useState<boolean>(false);
 
   // Pomodoro
   const [pomoTaskId, setPomoTaskId] = useState<string | null>(null);
@@ -604,7 +602,6 @@ export default function App() {
           delProj={delProj}
           setShowTask={setShowTask}
           setSidebarOpen={setSidebarOpen}
-          onOpenAssistant={() => setShowAssistant(true)}
           pomoTask={tasks.find((t) => t.id === pomoTaskId) || null}
           pomoTimeLeft={pomoTimeLeft}
           pomoIsRunning={pomoIsRunning}
@@ -741,8 +738,6 @@ export default function App() {
           currentTaskId={pomoTaskId}
         />
       )}
-
-      {showAssistant && <AssistantModal onClose={() => setShowAssistant(false)} />}
 
       <Toast toasts={toasts} onDismiss={dismiss} />
     </div>
