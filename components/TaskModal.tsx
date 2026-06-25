@@ -112,6 +112,7 @@ export default function TaskModal({
           padding: 28,
           width: 500,
           maxWidth: "100%",
+          boxSizing: "border-box",
           maxHeight: "90vh",
           overflowY: "auto",
           boxShadow: "0 20px 60px rgba(0,0,0,0.25)",

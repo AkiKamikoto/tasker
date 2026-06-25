@@ -56,6 +56,9 @@ export default function AuthModal() {
           borderRadius: 16,
           padding: "40px 36px",
           width: 380,
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          margin: 16,
           boxShadow: "0 20px 60px rgba(0,0,0,0.1)",
         }}
       >

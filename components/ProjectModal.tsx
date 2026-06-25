@@ -46,6 +46,7 @@ export default function ProjectModal({
           padding: 28,
           width: 360,
           maxWidth: "100%",
+          boxSizing: "border-box",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>

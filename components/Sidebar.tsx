@@ -13,6 +13,8 @@ interface SidebarProps {
   setScope: (scope: "work" | "personal") => void;
   userEmail: string;
   onSignOut: () => void;
+  isMobile: boolean;
+  closeSidebar: () => void;
 }
 
 export default function Sidebar({
@@ -27,10 +29,13 @@ export default function Sidebar({
   setScope,
   userEmail,
   onSignOut,
+  isMobile,
+  closeSidebar,
 }: SidebarProps) {
   const handleSelectView = (id: string) => {
     setSelProj(id);
     setFilter("all");
+    if (isMobile) closeSidebar();
   };
 
   const activeProjectIds = projects.filter((p) => p.scope === scope).map((p) => p.id);
@@ -49,6 +54,16 @@ export default function Sidebar({
         flexDirection: "column",
         transition: "all .2s",
         overflow: "hidden",
+        ...(isMobile
+          ? {
+              position: "fixed",
+              top: 0,
+              left: 0,
+              height: "100%",
+              zIndex: 1200,
+              boxShadow: sidebarOpen ? "2px 0 16px rgba(0,0,0,0.3)" : "none",
+            }
+          : {}),
       }}
     >
       <div style={{ padding: "20px 20px 14px", borderBottom: "none" }}>

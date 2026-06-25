@@ -13,6 +13,7 @@ import { supabase } from "./lib/supabase";
 import { dbToTask, dbToProject, taskToDb, projectToDb } from "./lib/mappers";
 import { POMODORO, NOTIFICATION_CHECK_INTERVAL_MS, BEEP } from "./config";
 import { useToast } from "./lib/useToast";
+import { useMediaQuery } from "./lib/useMediaQuery";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -22,12 +23,14 @@ import TaskModal from "./components/TaskModal";
 import ProjectModal from "./components/ProjectModal";
 import TaskSelectModal from "./components/TaskSelectModal";
 import AuthModal from "./components/AuthModal";
+import AssistantModal from "./components/AssistantModal";
 import Toast from "./components/Toast";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function App() {
   const { toasts, showToast, dismiss } = useToast();
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const [session, setSession] = useState<Session | null>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
@@ -46,6 +49,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [filter, setFilter] = useState<string>("all");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showAssistant, setShowAssistant] = useState<boolean>(false);
 
   // Pomodoro
   const [pomoTaskId, setPomoTaskId] = useState<string | null>(null);
@@ -119,6 +123,11 @@ export default function App() {
   useEffect(() => {
     if ("Notification" in window) setNotifPerm(Notification.permission);
   }, []);
+
+  // Авто-сворачивание сайдбара на мобильных, разворачивание на десктопе
+  useEffect(() => {
+    setSidebarOpen(!isMobile);
+  }, [isMobile]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -559,7 +568,21 @@ export default function App() {
         setScope={handleScopeChange}
         userEmail={session.user.email || ""}
         onSignOut={() => supabase.auth.signOut()}
+        isMobile={isMobile}
+        closeSidebar={() => setSidebarOpen(false)}
       />
+
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            zIndex: 1100,
+          }}
+        />
+      )}
 
       <div
         style={{
@@ -581,6 +604,7 @@ export default function App() {
           delProj={delProj}
           setShowTask={setShowTask}
           setSidebarOpen={setSidebarOpen}
+          onOpenAssistant={() => setShowAssistant(true)}
           pomoTask={tasks.find((t) => t.id === pomoTaskId) || null}
           pomoTimeLeft={pomoTimeLeft}
           pomoIsRunning={pomoIsRunning}
@@ -717,6 +741,8 @@ export default function App() {
           currentTaskId={pomoTaskId}
         />
       )}
+
+      {showAssistant && <AssistantModal onClose={() => setShowAssistant(false)} />}
 
       <Toast toasts={toasts} onDismiss={dismiss} />
     </div>

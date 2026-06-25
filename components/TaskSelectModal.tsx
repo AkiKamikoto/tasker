@@ -48,6 +48,7 @@ export default function TaskSelectModal({
           padding: 24,
           width: 400,
           maxWidth: "100%",
+          boxSizing: "border-box",
           maxHeight: "80vh",
           display: "flex",
           flexDirection: "column",

@@ -14,6 +14,7 @@ interface HeaderProps {
   delProj: (id: string) => void;
   setShowTask: (show: boolean) => void;
   setSidebarOpen: (f: (prev: boolean) => boolean) => void;
+  onOpenAssistant: () => void;
   pomoTask: Task | null;
   pomoTimeLeft: number;
   pomoIsRunning: boolean;
@@ -35,6 +36,7 @@ export default function Header({
   delProj,
   setShowTask,
   setSidebarOpen,
+  onOpenAssistant,
   pomoTask,
   pomoTimeLeft,
   pomoIsRunning,
@@ -110,6 +112,23 @@ export default function Header({
       />
 
       <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <button
+          onClick={onOpenAssistant}
+          title="Спросить ИИ о задачах"
+          style={{
+            padding: "6px 11px",
+            background: "#eef2ff",
+            border: "1px solid #c7d2fe",
+            borderRadius: 6,
+            cursor: "pointer",
+            fontSize: 12,
+            color: "#4338ca",
+            fontWeight: 600,
+          }}
+        >
+          ✨ ИИ
+        </button>
+
         {notifPerm !== "granted" && (
           <button
             onClick={reqNotif}
