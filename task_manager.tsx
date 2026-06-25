@@ -10,6 +10,9 @@ import {
 } from "./types";
 import { getStatus } from "./utils";
 import { supabase } from "./lib/supabase";
+import { dbToTask, dbToProject, taskToDb, projectToDb } from "./lib/mappers";
+import { POMODORO, NOTIFICATION_CHECK_INTERVAL_MS, BEEP } from "./config";
+import { useToast } from "./lib/useToast";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -19,68 +22,13 @@ import TaskModal from "./components/TaskModal";
 import ProjectModal from "./components/ProjectModal";
 import TaskSelectModal from "./components/TaskSelectModal";
 import AuthModal from "./components/AuthModal";
-
-// ─── DB mappers ───────────────────────────────────────────────────────────────
-
-function dbToTask(row: any): Task {
-  return {
-    id: row.id,
-    title: row.title,
-    desc: row.description,
-    dueDate: row.due_date,
-    reminder: row.reminder,
-    projectId: row.project_id,
-    difficulty: row.difficulty,
-    estH: row.est_h,
-    estM: row.est_m,
-    tags: row.tags || [],
-    completed: row.completed,
-    notified: row.notified,
-    pomodoros: row.pomodoros || 0,
-  };
-}
-
-function dbToProject(row: any): Project {
-  return {
-    id: row.id,
-    name: row.name,
-    color: row.color,
-    scope: row.scope as "work" | "personal",
-  };
-}
-
-function taskToDb(task: Task, userId: string) {
-  return {
-    id: task.id,
-    user_id: userId,
-    title: task.title,
-    description: task.desc,
-    due_date: task.dueDate,
-    reminder: task.reminder,
-    project_id: task.projectId,
-    difficulty: task.difficulty,
-    est_h: task.estH,
-    est_m: task.estM,
-    tags: task.tags,
-    completed: task.completed,
-    notified: task.notified,
-    pomodoros: task.pomodoros || 0,
-  };
-}
-
-function projectToDb(project: Project, userId: string) {
-  return {
-    id: project.id,
-    user_id: userId,
-    name: project.name,
-    color: project.color,
-    scope: project.scope,
-  };
-}
+import Toast from "./components/Toast";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const { toasts, showToast, dismiss } = useToast();
+
   const [session, setSession] = useState<Session | null>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
 
@@ -101,7 +49,7 @@ export default function App() {
 
   // Pomodoro
   const [pomoTaskId, setPomoTaskId] = useState<string | null>(null);
-  const [pomoTimeLeft, setPomoTimeLeft] = useState<number>(1500);
+  const [pomoTimeLeft, setPomoTimeLeft] = useState<number>(POMODORO.focusSeconds);
   const [pomoIsRunning, setPomoIsRunning] = useState<boolean>(false);
   const [pomoMode, setPomoMode] = useState<"focus" | "shortBreak">("focus");
   const [showPomoSelect, setShowPomoSelect] = useState<boolean>(false);
@@ -196,7 +144,7 @@ export default function App() {
           return t;
         })
       );
-    }, 30000);
+    }, NOTIFICATION_CHECK_INTERVAL_MS);
     return () => clearInterval(id);
   }, [session]);
 
@@ -219,7 +167,7 @@ export default function App() {
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       if (type === "focusEnd") {
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(BEEP.focusEnd, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.15);
@@ -229,14 +177,14 @@ export default function App() {
             const gain2 = audioCtx.createGain();
             osc2.connect(gain2);
             gain2.connect(audioCtx.destination);
-            osc2.frequency.setValueAtTime(880, audioCtx.currentTime);
+            osc2.frequency.setValueAtTime(BEEP.focusEnd, audioCtx.currentTime);
             gain2.gain.setValueAtTime(0.1, audioCtx.currentTime);
             osc2.start();
             osc2.stop(audioCtx.currentTime + 0.15);
           } catch {}
         }, 200);
       } else {
-        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(BEEP.breakEnd, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.4);
@@ -272,7 +220,7 @@ export default function App() {
             body: "Отличная работа! Время сделать перерыв.",
           });
         setPomoMode("shortBreak");
-        setPomoTimeLeft(300);
+        setPomoTimeLeft(POMODORO.shortBreakSeconds);
         setPomoIsRunning(false);
       } else {
         playBeep("breakEnd");
@@ -281,7 +229,7 @@ export default function App() {
             body: "Пора возвращаться к задачам.",
           });
         setPomoMode("focus");
-        setPomoTimeLeft(1500);
+        setPomoTimeLeft(POMODORO.focusSeconds);
         setPomoIsRunning(false);
       }
     }
@@ -291,7 +239,9 @@ export default function App() {
   const handlePomoToggle = () => setPomoIsRunning((p) => !p);
   const handlePomoReset = () => {
     setPomoIsRunning(false);
-    setPomoTimeLeft(pomoMode === "focus" ? 1500 : 300);
+    setPomoTimeLeft(
+      pomoMode === "focus" ? POMODORO.focusSeconds : POMODORO.shortBreakSeconds
+    );
   };
   const handlePomoSkip = () => {
     setPomoIsRunning(false);
@@ -304,17 +254,17 @@ export default function App() {
         );
       playBeep("focusEnd");
       setPomoMode("shortBreak");
-      setPomoTimeLeft(300);
+      setPomoTimeLeft(POMODORO.shortBreakSeconds);
     } else {
       playBeep("breakEnd");
       setPomoMode("focus");
-      setPomoTimeLeft(1500);
+      setPomoTimeLeft(POMODORO.focusSeconds);
     }
   };
   const handleStartPomoForTask = (task: Task) => {
     setPomoTaskId(task.id);
     setPomoMode("focus");
-    setPomoTimeLeft(1500);
+    setPomoTimeLeft(POMODORO.focusSeconds);
     setPomoIsRunning(true);
     if (Notification.permission === "default") Notification.requestPermission();
   };
@@ -341,7 +291,7 @@ export default function App() {
     tags: string[];
   }) => {
     const newTask: Task = {
-      id: Date.now() + "",
+      id: crypto.randomUUID(),
       title: taskData.title,
       desc: taskData.desc,
       dueDate: taskData.date ? `${taskData.date}T${taskData.time || "00:00"}` : "",
@@ -362,7 +312,14 @@ export default function App() {
     setTasks((prev) => [...prev, newTask]);
     setShowTask(false);
     if (session) {
-      await supabase.from("tasks").insert(taskToDb(newTask, session.user.id));
+      const { error } = await supabase
+        .from("tasks")
+        .insert(taskToDb(newTask, session.user.id));
+      if (error) {
+        // Откат оптимистичного добавления
+        setTasks((prev) => prev.filter((t) => t.id !== newTask.id));
+        showToast("Не удалось сохранить задачу. Проверьте соединение.");
+      }
     }
   };
 
@@ -391,10 +348,11 @@ export default function App() {
       tags: taskData.tags,
       notified: false,
     };
+    const prevTask = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
     setEditingTask(null);
     if (session) {
-      await supabase
+      const { error } = await supabase
         .from("tasks")
         .update({
           title: patch.title,
@@ -409,6 +367,11 @@ export default function App() {
         })
         .eq("id", id)
         .eq("user_id", session.user.id);
+      if (error && prevTask) {
+        // Откат к предыдущей версии задачи
+        setTasks((prev) => prev.map((t) => (t.id === id ? prevTask : t)));
+        showToast("Не удалось сохранить изменения. Проверьте соединение.");
+      }
     }
   };
 
@@ -419,22 +382,35 @@ export default function App() {
       prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
     );
     if (session) {
-      await supabase
+      const { error } = await supabase
         .from("tasks")
         .update({ completed: newVal })
         .eq("id", id)
         .eq("user_id", session.user.id);
+      if (error) {
+        // Откат переключения
+        setTasks((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, completed: !newVal } : t))
+        );
+        showToast("Не удалось обновить статус задачи.");
+      }
     }
   };
 
   const handleDeleteTask = async (id: string) => {
+    const prevTask = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
     if (session) {
-      await supabase
+      const { error } = await supabase
         .from("tasks")
         .delete()
         .eq("id", id)
         .eq("user_id", session.user.id);
+      if (error && prevTask) {
+        // Возврат удалённой задачи
+        setTasks((prev) => [...prev, prevTask]);
+        showToast("Не удалось удалить задачу.");
+      }
     }
   };
 
@@ -445,25 +421,41 @@ export default function App() {
     color: string,
     scopeVal: "work" | "personal"
   ) => {
-    const p: Project = { id: Date.now() + "", name, color, scope: scopeVal };
+    const p: Project = { id: crypto.randomUUID(), name, color, scope: scopeVal };
     setProjects((prev) => [...prev, p]);
     setShowProj(false);
     setSelProj(p.id);
     if (session) {
-      await supabase.from("projects").insert(projectToDb(p, session.user.id));
+      const { error } = await supabase
+        .from("projects")
+        .insert(projectToDb(p, session.user.id));
+      if (error) {
+        // Откат добавления проекта
+        setProjects((prev) => prev.filter((x) => x.id !== p.id));
+        setSelProj(scope === "work" ? "default-work" : "default-personal");
+        showToast("Не удалось создать проект. Проверьте соединение.");
+      }
     }
   };
 
   const delProj = async (id: string) => {
     if (id === "default-work" || id === "default-personal") return;
+    const prevProjects = projects;
+    const prevTasks = tasks;
     setProjects((prev) => prev.filter((x) => x.id !== id));
     setTasks((prev) => prev.filter((x) => x.projectId !== id));
     setSelProj(scope === "work" ? "default-work" : "default-personal");
     if (session) {
-      await Promise.all([
+      const [tasksRes, projRes] = await Promise.all([
         supabase.from("tasks").delete().eq("project_id", id).eq("user_id", session.user.id),
         supabase.from("projects").delete().eq("id", id).eq("user_id", session.user.id),
       ]);
+      if (tasksRes.error || projRes.error) {
+        // Возврат проекта и его задач
+        setProjects(prevProjects);
+        setTasks(prevTasks);
+        showToast("Не удалось удалить проект.");
+      }
     }
   };
 
@@ -717,7 +709,7 @@ export default function App() {
             } else {
               setPomoTaskId(null);
               setPomoMode("focus");
-              setPomoTimeLeft(1500);
+              setPomoTimeLeft(POMODORO.focusSeconds);
               setPomoIsRunning(true);
             }
             setShowPomoSelect(false);
@@ -725,6 +717,8 @@ export default function App() {
           currentTaskId={pomoTaskId}
         />
       )}
+
+      <Toast toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

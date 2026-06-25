@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DifficultyKey, DIFFICULTY, REMINDER_OPTIONS, NewTaskState, Task } from "../types";
 import { inp } from "../utils";
+import { useModal } from "../lib/useModal";
 
 interface TaskModalProps {
   onClose: () => void;
@@ -56,6 +57,7 @@ export default function TaskModal({
     }
     return EMPTY_TASK;
   });
+  const { firstFieldRef, backdropProps } = useModal<HTMLInputElement>(onClose);
 
   const addTaskTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if ((e.key === "Enter" || e.key === ",") && form.tagInput.trim()) {
@@ -91,6 +93,7 @@ export default function TaskModal({
 
   return (
     <div
+      {...backdropProps}
       style={{
         position: "fixed",
         inset: 0,
@@ -135,6 +138,7 @@ export default function TaskModal({
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input
             {...inp()}
+            ref={firstFieldRef}
             placeholder="Название задачи *"
             value={form.title}
             onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}

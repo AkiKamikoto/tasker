@@ -1,0 +1,85 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { getStatus, fmt, fmtTime } from "./utils";
+import { Task } from "./types";
+
+const baseTask: Task = {
+  id: "1",
+  title: "Test",
+  desc: "",
+  dueDate: "",
+  reminder: 30,
+  projectId: "default-work",
+  difficulty: "medium",
+  estH: 0,
+  estM: 30,
+  tags: [],
+  completed: false,
+  notified: false,
+};
+
+describe("getStatus", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-25T12:00:00"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("возвращает 'completed' для выполненной задачи", () => {
+    expect(getStatus({ ...baseTask, completed: true })).toBe("completed");
+  });
+
+  it("возвращает 'upcoming' для задачи без дедлайна", () => {
+    expect(getStatus({ ...baseTask, dueDate: "" })).toBe("upcoming");
+  });
+
+  it("возвращает 'overdue' для просроченной задачи", () => {
+    expect(getStatus({ ...baseTask, dueDate: "2026-06-25T11:00:00" })).toBe("overdue");
+  });
+
+  it("возвращает 'urgent' для задачи в пределах часа", () => {
+    expect(getStatus({ ...baseTask, dueDate: "2026-06-25T12:30:00" })).toBe("urgent");
+  });
+
+  it("возвращает 'upcoming' для задачи более чем через час", () => {
+    expect(getStatus({ ...baseTask, dueDate: "2026-06-25T14:00:00" })).toBe("upcoming");
+  });
+
+  it("'completed' имеет приоритет над просрочкой", () => {
+    expect(
+      getStatus({ ...baseTask, completed: true, dueDate: "2026-06-25T11:00:00" })
+    ).toBe("completed");
+  });
+});
+
+describe("fmt", () => {
+  it("возвращает заглушку для пустой даты", () => {
+    expect(fmt("")).toBe("Без дедлайна");
+  });
+
+  it("форматирует дату в ru-RU", () => {
+    const result = fmt("2026-06-25T14:30:00");
+    expect(result).toContain("25");
+    expect(result).toContain("06");
+    expect(result).toContain("2026");
+  });
+});
+
+describe("fmtTime", () => {
+  it("форматирует часы и минуты", () => {
+    expect(fmtTime(2, 30)).toBe("2 ч 30 мин");
+  });
+
+  it("только часы", () => {
+    expect(fmtTime(1, 0)).toBe("1 ч");
+  });
+
+  it("только минуты", () => {
+    expect(fmtTime(0, 45)).toBe("45 мин");
+  });
+
+  it("возвращает '—' при нулевых значениях", () => {
+    expect(fmtTime(0, 0)).toBe("—");
+  });
+});

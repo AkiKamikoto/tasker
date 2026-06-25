@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Task, Project } from "../types";
 import { inp } from "../utils";
+import { useModal } from "../lib/useModal";
 
 interface TaskSelectModalProps {
   onClose: () => void;
@@ -18,6 +19,7 @@ export default function TaskSelectModal({
   currentTaskId,
 }: TaskSelectModalProps) {
   const [search, setSearch] = useState("");
+  const { firstFieldRef, backdropProps } = useModal<HTMLInputElement>(onClose);
 
   const filteredTasks = tasks.filter(
     (t) =>
@@ -27,6 +29,7 @@ export default function TaskSelectModal({
 
   return (
     <div
+      {...backdropProps}
       style={{
         position: "fixed",
         inset: 0,
@@ -73,6 +76,7 @@ export default function TaskSelectModal({
         {/* Search Input */}
         <input
           {...inp({ style: { marginBottom: 14 } })}
+          ref={firstFieldRef}
           placeholder="Поиск задачи..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PROJECT_COLORS } from "../types";
 import { inp } from "../utils";
+import { useModal } from "../lib/useModal";
 
 interface ProjectModalProps {
   onClose: () => void;
@@ -15,6 +16,7 @@ export default function ProjectModal({
 }: ProjectModalProps) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(PROJECT_COLORS[0]);
+  const { firstFieldRef, backdropProps } = useModal<HTMLInputElement>(onClose);
 
   const handleSubmit = () => {
     if (!name.trim()) return;
@@ -25,6 +27,7 @@ export default function ProjectModal({
 
   return (
     <div
+      {...backdropProps}
       style={{
         position: "fixed",
         inset: 0,
@@ -65,9 +68,11 @@ export default function ProjectModal({
 
         <input
           {...inp({ style: { marginBottom: 14 } })}
+          ref={firstFieldRef}
           placeholder="Название проекта *"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
         />
 
         <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>Цвет</div>
