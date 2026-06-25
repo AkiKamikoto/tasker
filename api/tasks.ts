@@ -1,5 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
-
 // REST API для внешнего ИИ: чтение и изменение задач.
 // Доступ по личному ключу (заголовок Authorization: Bearer <API_ACCESS_KEY>
 // или x-api-key). Работа с БД идёт через service-role ключ (только на сервере),
@@ -37,6 +35,7 @@ function toApiTask(t: any) {
 }
 
 export default async function handler(req: any, res: any) {
+ try {
   if (!isAuthorized(req)) {
     res.status(401).json({ error: "Неверный или отсутствующий API-ключ" });
     return;
@@ -49,10 +48,16 @@ export default async function handler(req: any, res: any) {
     res.status(500).json({
       error:
         "Сервер не сконфигурирован: нужны VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY и API_USER_ID.",
+      missing: {
+        VITE_SUPABASE_URL: !url,
+        SUPABASE_SERVICE_ROLE_KEY: !serviceKey,
+        API_USER_ID: !userId,
+      },
     });
     return;
   }
 
+  const { createClient } = await import("@supabase/supabase-js");
   const db = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -158,4 +163,11 @@ export default async function handler(req: any, res: any) {
   } catch (e: any) {
     res.status(500).json({ error: e?.message || "Ошибка сервера" });
   }
+ } catch (fatal: any) {
+   // Ловим всё, включая ошибки загрузки модуля/инициализации,
+   // чтобы вернуть текст ошибки вместо FUNCTION_INVOCATION_FAILED.
+   try {
+     res.status(500).json({ error: "Фатальная ошибка: " + (fatal?.message || String(fatal)) });
+   } catch {}
+ }
 }
