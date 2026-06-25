@@ -1,5 +1,5 @@
 
-import { Project, Task } from "../types";
+import { Project, Task, User } from "../types";
 
 interface SidebarProps {
   projects: Project[];
@@ -11,6 +11,8 @@ interface SidebarProps {
   setShowProj: (show: boolean) => void;
   scope: "work" | "personal";
   setScope: (scope: "work" | "personal") => void;
+  currentUser: User;
+  onSwitchUser: () => void;
 }
 
 export default function Sidebar({
@@ -23,6 +25,8 @@ export default function Sidebar({
   setShowProj,
   scope,
   setScope,
+  currentUser,
+  onSwitchUser,
 }: SidebarProps) {
   const handleSelectView = (id: string) => {
     setSelProj(id);
@@ -208,7 +212,7 @@ export default function Sidebar({
         })}
       </div>
 
-      <div style={{ padding: "14px 20px", borderTop: "1px solid #334155" }}>
+      <div style={{ padding: "14px 20px", borderTop: "1px solid #334155", display: "flex", flexDirection: "column", gap: 8 }}>
         <button
           onClick={() => setShowProj(true)}
           style={{
@@ -227,6 +231,46 @@ export default function Sidebar({
           }}
         >
           <span style={{ fontSize: 16 }}>+</span> Новый проект
+        </button>
+
+        {/* Current user */}
+        <button
+          onClick={onSwitchUser}
+          title="Сменить пользователя"
+          style={{
+            width: "100%",
+            padding: "8px 10px",
+            background: "transparent",
+            border: "1px solid #334155",
+            borderRadius: 8,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+            textAlign: "left",
+          }}
+        >
+          <div
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: "50%",
+              background: currentUser.color,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "white",
+              fontWeight: 700,
+              fontSize: 12,
+              flexShrink: 0,
+            }}
+          >
+            {currentUser.name[0].toUpperCase()}
+          </div>
+          <span style={{ fontSize: 12.5, color: "#cbd5e1", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {currentUser.name}
+          </span>
+          <span style={{ fontSize: 11, color: "#64748b" }}>сменить</span>
         </button>
       </div>
     </div>

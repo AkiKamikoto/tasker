@@ -2,13 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Project,
   Task,
+  User,
   DEFAULT_WORK_PROJECT,
   DEFAULT_PERSONAL_PROJECT,
-  STORAGE_KEY,
+  USERS_KEY,
+  CURRENT_USER_KEY,
   STATUS_CONFIG,
   DifficultyKey,
 } from "./types";
-import { getStatus, storage } from "./utils";
+import { getStatus, storage, userStorageKey } from "./utils";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -17,6 +19,7 @@ import TaskItem from "./components/TaskItem";
 import TaskModal from "./components/TaskModal";
 import ProjectModal from "./components/ProjectModal";
 import TaskSelectModal from "./components/TaskSelectModal";
+import UserSetupModal from "./components/UserSetupModal";
 
 // Extend window interface for custom storage
 declare global {
@@ -29,6 +32,11 @@ declare global {
 }
 
 export default function App() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [showUserSetup, setShowUserSetup] = useState<boolean>(false);
+  const [usersLoaded, setUsersLoaded] = useState<boolean>(false);
+
   const [scope, setScope] = useState<"work" | "personal">("work");
   const [projects, setProjects] = useState<Project[]>([
     DEFAULT_WORK_PROJECT,
@@ -51,15 +59,39 @@ export default function App() {
   const [pomoMode, setPomoMode] = useState<"focus" | "shortBreak">("focus");
   const [showPomoSelect, setShowPomoSelect] = useState<boolean>(false);
 
-  // Load state from custom storage
+  // Load users and current user
   useEffect(() => {
     (async () => {
       try {
-        const r = await storage.get(STORAGE_KEY);
+        const usersRaw = await storage.get(USERS_KEY);
+        const loadedUsers: User[] = usersRaw ? JSON.parse(usersRaw) : [];
+        setUsers(loadedUsers);
+
+        const currentUserId = await storage.get(CURRENT_USER_KEY);
+        const found = loadedUsers.find((u) => u.id === currentUserId);
+        if (found) {
+          setCurrentUser(found);
+        } else {
+          setShowUserSetup(true);
+        }
+      } catch {
+        setShowUserSetup(true);
+      }
+      setUsersLoaded(true);
+    })();
+  }, []);
+
+  // Load tasks/projects for current user
+  useEffect(() => {
+    if (!currentUser) return;
+    setLoaded(false);
+    (async () => {
+      try {
+        const key = userStorageKey(currentUser.id);
+        const r = await storage.get(key);
         if (r) {
           const d = JSON.parse(r);
           const loadedProjects: Project[] = d.projects || [];
-          // Ensure defaults exist
           if (!loadedProjects.some((p) => p.id === "default-work")) {
             loadedProjects.push(DEFAULT_WORK_PROJECT);
           }
@@ -68,19 +100,22 @@ export default function App() {
           }
           setProjects(loadedProjects);
           setTasks(d.tasks || []);
+        } else {
+          setProjects([DEFAULT_WORK_PROJECT, DEFAULT_PERSONAL_PROJECT]);
+          setTasks([]);
         }
       } catch {}
       setLoaded(true);
     })();
-  }, []);
+  }, [currentUser]);
 
-  // Save state to custom storage
+  // Save tasks/projects for current user
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !currentUser) return;
     storage
-      .set(STORAGE_KEY, JSON.stringify({ projects, tasks }))
+      .set(userStorageKey(currentUser.id), JSON.stringify({ projects, tasks }))
       .catch(() => {});
-  }, [projects, tasks, loaded]);
+  }, [projects, tasks, loaded, currentUser]);
 
   // Request notifications permission if available
   useEffect(() => {
@@ -113,6 +148,23 @@ export default function App() {
     }, 30000);
     return () => clearInterval(id);
   }, []);
+
+  const handleSelectUser = (user: User) => {
+    setCurrentUser(user);
+    setShowUserSetup(false);
+    setScope("work");
+    setSelProj("default-work");
+    setFilter("all");
+    storage.set(CURRENT_USER_KEY, user.id).catch(() => {});
+  };
+
+  const handleCreateUser = (name: string, color: string) => {
+    const newUser: User = { id: Date.now() + "", name, color };
+    const updated = [...users, newUser];
+    setUsers(updated);
+    storage.set(USERS_KEY, JSON.stringify(updated)).catch(() => {});
+    handleSelectUser(newUser);
+  };
 
   const reqNotif = async () => {
     if ("Notification" in window) {
@@ -404,17 +456,21 @@ export default function App() {
       }}
     >
       {/* SIDEBAR */}
-      <Sidebar
-        projects={projects}
-        tasks={tasks}
-        selProj={selProj}
-        setSelProj={setSelProj}
-        setFilter={setFilter}
-        sidebarOpen={sidebarOpen}
-        setShowProj={setShowProj}
-        scope={scope}
-        setScope={handleScopeChange}
-      />
+      {currentUser && (
+        <Sidebar
+          projects={projects}
+          tasks={tasks}
+          selProj={selProj}
+          setSelProj={setSelProj}
+          setFilter={setFilter}
+          sidebarOpen={sidebarOpen}
+          setShowProj={setShowProj}
+          scope={scope}
+          setScope={handleScopeChange}
+          currentUser={currentUser}
+          onSwitchUser={() => setShowUserSetup(true)}
+        />
+      )}
 
       {/* MAIN CONTENT AREA */}
       <div
@@ -561,6 +617,14 @@ export default function App() {
           onClose={() => setShowProj(false)}
           onAddProj={handleAddProj}
           scope={scope}
+        />
+      )}
+
+      {(showUserSetup || !currentUser) && usersLoaded && (
+        <UserSetupModal
+          users={users}
+          onSelect={handleSelectUser}
+          onCreate={handleCreateUser}
         />
       )}
 

@@ -56,5 +56,15 @@ export const storage = {
       localStorage.setItem(key, value);
     }
   },
+  remove: async (key: string): Promise<void> => {
+    if (typeof window !== "undefined" && "storage" in window && window.storage) {
+      // custom storage may not support remove; fall through to localStorage
+    }
+    localStorage.removeItem(key);
+  },
 };
+
+export function userStorageKey(userId: string): string {
+  return `taskmanager-v2-${userId}`;
+}
 
