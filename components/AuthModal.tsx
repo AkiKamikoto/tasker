@@ -116,7 +116,7 @@ export default function AuthModal() {
                 style={{
                   width: "100%",
                   padding: "10px 14px",
-                  border: "1.5px solid #e2e8f0",
+                  border: "1.5px solid var(--border)",
                   borderRadius: 8,
                   fontSize: 14,
                   outline: "none",
@@ -138,7 +138,7 @@ export default function AuthModal() {
                 style={{
                   width: "100%",
                   padding: "10px 14px",
-                  border: "1.5px solid #e2e8f0",
+                  border: "1.5px solid var(--border)",
                   borderRadius: 8,
                   fontSize: 14,
                   outline: "none",

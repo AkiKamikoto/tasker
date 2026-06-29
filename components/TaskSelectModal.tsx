@@ -91,7 +91,7 @@ export default function TaskSelectModal({
             style={{
               padding: "10px 14px",
               borderRadius: 8,
-              border: "1px solid #e2e8f0",
+              border: "1px solid var(--border)",
               cursor: "pointer",
               fontSize: 13.5,
               fontWeight: 600,
@@ -123,7 +123,7 @@ export default function TaskSelectModal({
                     padding: "12px 14px",
                     borderRadius: 8,
                     border: `1px solid ${isActive ? "#ef4444" : "var(--border)"}`,
-                    background: isActive ? "#fef2f2" : "white",
+                    background: isActive ? "var(--surface-2)" : "var(--surface)",
                     cursor: "pointer",
                     transition: "all 0.15s",
                     display: "flex",

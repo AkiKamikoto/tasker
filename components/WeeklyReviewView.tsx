@@ -109,7 +109,7 @@ export default function WeeklyReviewView({
                 onClick={() => onSetGtd(t.id, o.value)}
                 title={`В «${o.label}»`}
                 style={{
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid var(--border)",
                   background: "var(--surface)",
                   borderRadius: 6,
                   padding: "3px 7px",
@@ -142,7 +142,7 @@ export default function WeeklyReviewView({
             <div style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 8 }}>{s.hint}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {s.items.length === 0 ? (
-                <div style={{ fontSize: 12.5, color: "#cbd5e1" }}>Пусто 🎉</div>
+                <div style={{ fontSize: 12.5, color: "var(--text-faint)" }}>Пусто 🎉</div>
               ) : (
                 s.items.map((t) => row(t, !!s.showGtd))
               )}

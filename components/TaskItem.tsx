@@ -209,27 +209,27 @@ export default function TaskItem({
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <button onClick={() => onAddSubtask(node)} style={iconBtn("#cbd5e1")} title="Добавить подзадачу">
+            <button onClick={() => onAddSubtask(node)} style={iconBtn("var(--text-faint)")} title="Добавить подзадачу">
               ＋
             </button>
-            <button onClick={() => setShowMove((s) => !s)} style={iconBtn("#cbd5e1")} title="Переместить в проект">
+            <button onClick={() => setShowMove((s) => !s)} style={iconBtn("var(--text-faint)")} title="Переместить в проект">
               ⇄
             </button>
             {!task.completed && (
               <button
                 onClick={() => onStartPomodoro(node)}
-                style={iconBtn(isFocusing ? "#ef4444" : "#cbd5e1")}
+                style={iconBtn(isFocusing ? "#ef4444" : "var(--text-faint)")}
                 title="Запустить фокусировку Помодоро"
               >
                 🍅
               </button>
             )}
-            <button onClick={() => onEdit(node)} style={iconBtn("#cbd5e1")} title="Редактировать">
+            <button onClick={() => onEdit(node)} style={iconBtn("var(--text-faint)")} title="Редактировать">
               ✏️
             </button>
             <button
               onClick={() => onDelete(task.id)}
-              style={{ ...iconBtn("#cbd5e1"), fontSize: 20, padding: "0 2px" }}
+              style={{ ...iconBtn("var(--text-faint)"), fontSize: 20, padding: "0 2px" }}
               title="Удалить"
             >
               ×

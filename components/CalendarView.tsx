@@ -58,7 +58,7 @@ export default function CalendarView({ tasks, projects, onEdit }: CalendarViewPr
   const month = cursor.getMonth();
 
   const navBtn: React.CSSProperties = {
-    border: "1px solid #e2e8f0",
+    border: "1px solid var(--border)",
     background: "var(--surface)",
     borderRadius: 8,
     padding: "5px 12px",
@@ -109,8 +109,8 @@ export default function CalendarView({ tasks, projects, onEdit }: CalendarViewPr
               key={key}
               style={{
                 minHeight: 92,
-                background: inMonth ? "white" : "var(--surface-3)",
-                border: isToday ? "2px solid #3b82f6" : "1px solid #e2e8f0",
+                background: inMonth ? "var(--surface)" : "var(--surface-3)",
+                border: isToday ? "2px solid #3b82f6" : "1px solid var(--border)",
                 borderRadius: 8,
                 padding: 6,
                 opacity: inMonth ? 1 : 0.55,

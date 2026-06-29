@@ -309,7 +309,7 @@ export default function Sidebar({
           >
             {userEmail[0]?.toUpperCase() || "?"}
           </div>
-          <span style={{ fontSize: 12.5, color: "#cbd5e1", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 12.5, color: "var(--text-faint)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {userEmail}
           </span>
           <span style={{ fontSize: 11, color: "#64748b" }}>выйти</span>
