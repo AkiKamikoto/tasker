@@ -18,6 +18,11 @@ describe("dbToTask", () => {
       completed: false,
       notified: true,
       pomodoros: 3,
+      parent_id: "t0",
+      recurrence: { freq: "weekly", interval: 1 },
+      urgent: true,
+      important: false,
+      gtd_status: "next",
     };
     expect(dbToTask(row)).toEqual({
       id: "t1",
@@ -33,6 +38,11 @@ describe("dbToTask", () => {
       completed: false,
       notified: true,
       pomodoros: 3,
+      parentId: "t0",
+      recurrence: { freq: "weekly", interval: 1 },
+      urgent: true,
+      important: false,
+      gtdStatus: "next",
     });
   });
 
@@ -55,6 +65,11 @@ describe("dbToTask", () => {
     const task = dbToTask(row);
     expect(task.tags).toEqual([]);
     expect(task.pomodoros).toBe(0);
+    expect(task.parentId).toBeNull();
+    expect(task.recurrence).toBeNull();
+    expect(task.urgent).toBe(false);
+    expect(task.important).toBe(false);
+    expect(task.gtdStatus).toBe("inbox");
   });
 });
 
@@ -74,6 +89,11 @@ describe("taskToDb", () => {
       completed: true,
       notified: false,
       pomodoros: 1,
+      parentId: "t0",
+      recurrence: { freq: "monthly", interval: 2 },
+      urgent: false,
+      important: true,
+      gtdStatus: "waiting",
     };
     expect(taskToDb(task, "user-42")).toEqual({
       id: "t1",
@@ -90,11 +110,16 @@ describe("taskToDb", () => {
       completed: true,
       notified: false,
       pomodoros: 1,
+      parent_id: "t0",
+      recurrence: { freq: "monthly", interval: 2 },
+      urgent: false,
+      important: true,
+      gtd_status: "waiting",
     });
   });
 
   it("дефолтит pomodoros в 0 если поле отсутствует", () => {
-    const task = { id: "t", title: "", desc: "", dueDate: "", reminder: 30, projectId: "p", difficulty: "easy", estH: 0, estM: 0, tags: [], completed: false, notified: false } as Task;
+    const task = { id: "t", title: "", desc: "", dueDate: "", reminder: 30, projectId: "p", difficulty: "easy", estH: 0, estM: 0, tags: [], completed: false, notified: false, parentId: null, recurrence: null, urgent: false, important: false, gtdStatus: "inbox" } as Task;
     expect(taskToDb(task, "u").pomodoros).toBe(0);
   });
 });

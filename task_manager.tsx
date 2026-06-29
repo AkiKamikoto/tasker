@@ -6,9 +6,11 @@ import {
   DEFAULT_WORK_PROJECT,
   DEFAULT_PERSONAL_PROJECT,
   STATUS_CONFIG,
-  DifficultyKey,
+  ViewMode,
+  GroupBy,
+  GtdStatus,
 } from "./types";
-import { getStatus } from "./utils";
+import { getStatus, buildTaskTree, groupTasks, getDescendantIds, nodeMatchesFilter, nextDueDate } from "./utils";
 import { supabase } from "./lib/supabase";
 import { dbToTask, dbToProject, taskToDb, projectToDb } from "./lib/mappers";
 import { POMODORO, NOTIFICATION_CHECK_INTERVAL_MS, BEEP } from "./config";
@@ -19,9 +21,12 @@ import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import StatsView from "./components/StatsView";
 import TaskItem from "./components/TaskItem";
-import TaskModal from "./components/TaskModal";
+import TaskModal, { TaskFormData } from "./components/TaskModal";
 import ProjectModal from "./components/ProjectModal";
 import TaskSelectModal from "./components/TaskSelectModal";
+import CalendarView from "./components/CalendarView";
+import MatrixView from "./components/MatrixView";
+import WeeklyReviewView from "./components/WeeklyReviewView";
 import AuthModal from "./components/AuthModal";
 import Toast from "./components/Toast";
 
@@ -48,6 +53,10 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [filter, setFilter] = useState<string>("all");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [addingSubtaskParent, setAddingSubtaskParent] = useState<Task | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [groupBy, setGroupBy] = useState<GroupBy>("none");
+  const [inboxTitle, setInboxTitle] = useState<string>("");
 
   // Pomodoro
   const [pomoTaskId, setPomoTaskId] = useState<string | null>(null);
@@ -286,38 +295,30 @@ export default function App() {
 
   // ── Task CRUD ─────────────────────────────────────────────────────────────
 
-  const handleAddTask = async (taskData: {
-    title: string;
-    desc: string;
-    date: string;
-    time: string;
-    reminder: number;
-    difficulty: DifficultyKey;
-    estH: number;
-    estM: number;
-    tags: string[];
-  }) => {
+  const handleAddTask = async (taskData: TaskFormData, parentId: string | null = null) => {
     const newTask: Task = {
       id: crypto.randomUUID(),
       title: taskData.title,
       desc: taskData.desc,
       dueDate: taskData.date ? `${taskData.date}T${taskData.time || "00:00"}` : "",
       reminder: taskData.reminder,
-      projectId:
-        selProj === "__all__"
-          ? scope === "work"
-            ? "default-work"
-            : "default-personal"
-          : selProj,
+      projectId: taskData.projectId,
       difficulty: taskData.difficulty,
       estH: taskData.estH,
       estM: taskData.estM,
       tags: taskData.tags,
       completed: false,
       notified: false,
+      pomodoros: 0,
+      parentId,
+      recurrence: taskData.recurrence,
+      urgent: taskData.urgent,
+      important: taskData.important,
+      gtdStatus: taskData.gtdStatus,
     };
     setTasks((prev) => [...prev, newTask]);
     setShowTask(false);
+    setAddingSubtaskParent(null);
     if (session) {
       const { error } = await supabase
         .from("tasks")
@@ -330,33 +331,58 @@ export default function App() {
     }
   };
 
-  const handleUpdateTask = async (
-    id: string,
-    taskData: {
-      title: string;
-      desc: string;
-      date: string;
-      time: string;
-      reminder: number;
-      difficulty: DifficultyKey;
-      estH: number;
-      estM: number;
-      tags: string[];
-    }
-  ) => {
+  // Быстрый захват во «Входящие» (GTD inbox): только название.
+  const handleQuickAddInbox = (title: string) => {
+    const t = title.trim();
+    if (!t) return;
+    setInboxTitle("");
+    handleAddTask({
+      title: t,
+      desc: "",
+      date: "",
+      time: "",
+      reminder: 30,
+      difficulty: "medium",
+      estH: 0,
+      estM: 30,
+      tags: [],
+      projectId: scope === "work" ? "default-work" : "default-personal",
+      recurrence: null,
+      urgent: false,
+      important: false,
+      gtdStatus: "inbox",
+    });
+  };
+
+  const handleUpdateTask = async (id: string, taskData: TaskFormData) => {
+    const prevTask = tasks.find((t) => t.id === id);
+    const prevTasks = tasks;
+    const projectChanged = !!prevTask && prevTask.projectId !== taskData.projectId;
+    // При смене проекта подзадачи переезжают вместе с родителем.
+    const descIds = projectChanged ? getDescendantIds(tasks, id) : [];
     const patch = {
       title: taskData.title,
       desc: taskData.desc,
       dueDate: taskData.date ? `${taskData.date}T${taskData.time || "00:00"}` : "",
       reminder: taskData.reminder,
+      projectId: taskData.projectId,
       difficulty: taskData.difficulty,
       estH: taskData.estH,
       estM: taskData.estM,
       tags: taskData.tags,
+      recurrence: taskData.recurrence,
+      urgent: taskData.urgent,
+      important: taskData.important,
+      gtdStatus: taskData.gtdStatus,
       notified: false,
     };
-    const prevTask = tasks.find((t) => t.id === id);
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === id) return { ...t, ...patch };
+        if (descIds.includes(t.id)) return { ...t, projectId: taskData.projectId };
+        return t;
+      })
+    );
     setEditingTask(null);
     if (session) {
       const { error } = await supabase
@@ -366,28 +392,91 @@ export default function App() {
           description: patch.desc,
           due_date: patch.dueDate,
           reminder: patch.reminder,
+          project_id: patch.projectId,
           difficulty: patch.difficulty,
           est_h: patch.estH,
           est_m: patch.estM,
           tags: patch.tags,
+          recurrence: patch.recurrence,
+          urgent: patch.urgent,
+          important: patch.important,
+          gtd_status: patch.gtdStatus,
           notified: false,
         })
         .eq("id", id)
         .eq("user_id", session.user.id);
-      if (error && prevTask) {
-        // Откат к предыдущей версии задачи
-        setTasks((prev) => prev.map((t) => (t.id === id ? prevTask : t)));
+      let descError = null;
+      if (!error && descIds.length > 0) {
+        const res = await supabase
+          .from("tasks")
+          .update({ project_id: taskData.projectId })
+          .in("id", descIds)
+          .eq("user_id", session.user.id);
+        descError = res.error;
+      }
+      if ((error || descError) && prevTask) {
+        // Откат к предыдущему состоянию
+        setTasks(prevTasks);
         showToast("Не удалось сохранить изменения. Проверьте соединение.");
+      }
+    }
+  };
+
+  // Перемещение задачи (и её подзадач) в другой проект — быстрое действие.
+  const handleMoveTask = async (id: string, projectId: string) => {
+    const prevTasks = tasks;
+    const ids = [id, ...getDescendantIds(tasks, id)];
+    setTasks((prev) => prev.map((t) => (ids.includes(t.id) ? { ...t, projectId } : t)));
+    if (session) {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ project_id: projectId })
+        .in("id", ids)
+        .eq("user_id", session.user.id);
+      if (error) {
+        setTasks(prevTasks);
+        showToast("Не удалось переместить задачу.");
+      }
+    }
+  };
+
+  // Смена GTD-статуса (используется в обзоре).
+  const handleSetGtd = async (id: string, status: GtdStatus) => {
+    const prevTasks = tasks;
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, gtdStatus: status } : t)));
+    if (session) {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ gtd_status: status })
+        .eq("id", id)
+        .eq("user_id", session.user.id);
+      if (error) {
+        setTasks(prevTasks);
+        showToast("Не удалось обновить статус.");
       }
     }
   };
 
   const handleToggleTaskCompleted = async (id: string) => {
     const task = tasks.find((t) => t.id === id);
-    const newVal = !task?.completed;
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
+    if (!task) return;
+    const newVal = !task.completed;
+    // Повтор: при завершении повторяющейся задачи создаём следующий экземпляр.
+    const spawned: Task | null =
+      newVal && task.recurrence && task.dueDate
+        ? {
+            ...task,
+            id: crypto.randomUUID(),
+            completed: false,
+            notified: false,
+            pomodoros: 0,
+            dueDate: nextDueDate(task.dueDate, task.recurrence),
+          }
+        : null;
+    setTasks((prev) => {
+      const next = prev.map((t) => (t.id === id ? { ...t, completed: newVal } : t));
+      return spawned ? [...next, spawned] : next;
+    });
     if (session) {
       const { error } = await supabase
         .from("tasks")
@@ -395,27 +484,39 @@ export default function App() {
         .eq("id", id)
         .eq("user_id", session.user.id);
       if (error) {
-        // Откат переключения
+        // Откат переключения и созданного повтора
         setTasks((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, completed: !newVal } : t))
+          prev
+            .filter((t) => !spawned || t.id !== spawned.id)
+            .map((t) => (t.id === id ? { ...t, completed: !newVal } : t))
         );
         showToast("Не удалось обновить статус задачи.");
+      } else if (spawned) {
+        const { error: e2 } = await supabase
+          .from("tasks")
+          .insert(taskToDb(spawned, session.user.id));
+        if (e2) {
+          setTasks((prev) => prev.filter((t) => t.id !== spawned.id));
+          showToast("Не удалось создать повтор задачи.");
+        }
       }
     }
   };
 
   const handleDeleteTask = async (id: string) => {
-    const prevTask = tasks.find((t) => t.id === id);
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    const prevTasks = tasks;
+    // Удаляем задачу вместе со всеми подзадачами (в БД — каскад по FK).
+    const ids = [id, ...getDescendantIds(tasks, id)];
+    setTasks((prev) => prev.filter((t) => !ids.includes(t.id)));
     if (session) {
       const { error } = await supabase
         .from("tasks")
         .delete()
         .eq("id", id)
         .eq("user_id", session.user.id);
-      if (error && prevTask) {
-        // Возврат удалённой задачи
-        setTasks((prev) => [...prev, prevTask]);
+      if (error) {
+        // Возврат удалённых задач
+        setTasks(prevTasks);
         showToast("Не удалось удалить задачу.");
       }
     }
@@ -470,6 +571,14 @@ export default function App() {
 
   const isStats = selProj === "__stats__";
   const isAllView = selProj === "__all__";
+  const isInbox = selProj === "__inbox__";
+  const isReview = selProj === "__review__";
+  // Контролы вида (список/календарь/матрица + группировка) — только для обычных списков задач.
+  const showViewControls = !isStats && !isInbox && !isReview;
+
+  const defaultProjectId = isStats || isAllView || isInbox || isReview
+    ? scope === "work" ? "default-work" : "default-personal"
+    : selProj;
 
   const activeProjectIds = useMemo(
     () => projects.filter((p) => p.scope === scope).map((p) => p.id),
@@ -484,42 +593,48 @@ export default function App() {
   const proj = useMemo(() => {
     if (isStats) return { id: "__stats__", name: "Статистика", color: scope === "work" ? "#3b82f6" : "#ec4899" };
     if (isAllView) return { id: "__all__", name: "Все задачи", color: "#64748b" };
+    if (isInbox) return { id: "__inbox__", name: "Входящие", color: "#6366f1" };
+    if (isReview) return { id: "__review__", name: "Еженедельный обзор", color: "#0ea5e9" };
     return projects.find((p) => p.id === selProj);
-  }, [projects, selProj, isStats, isAllView, scope]);
+  }, [projects, selProj, isStats, isAllView, isInbox, isReview, scope]);
 
   const viewTasks = useMemo(() => {
-    if (isAllView || isStats) return scopeTasks;
+    if (isAllView || isStats || isReview) return scopeTasks;
+    if (isInbox) return scopeTasks.filter((t) => t.gtdStatus === "inbox");
     return scopeTasks.filter((t) => t.projectId === selProj);
-  }, [scopeTasks, selProj, isAllView, isStats]);
-
-  const allFiltered = useMemo(
-    () => (isStats ? scopeTasks : viewTasks),
-    [scopeTasks, viewTasks, isStats]
-  );
+  }, [scopeTasks, selProj, isAllView, isStats, isInbox, isReview]);
 
   const counts = useMemo(() => ({
-    all: allFiltered.length,
-    upcoming: allFiltered.filter((t) => getStatus(t) === "upcoming").length,
-    urgent: allFiltered.filter((t) => getStatus(t) === "urgent").length,
-    overdue: allFiltered.filter((t) => getStatus(t) === "overdue").length,
-    completed: allFiltered.filter((t) => getStatus(t) === "completed").length,
-  }), [allFiltered]);
+    all: viewTasks.length,
+    upcoming: viewTasks.filter((t) => getStatus(t) === "upcoming").length,
+    urgent: viewTasks.filter((t) => getStatus(t) === "urgent").length,
+    overdue: viewTasks.filter((t) => getStatus(t) === "overdue").length,
+    completed: viewTasks.filter((t) => getStatus(t) === "completed").length,
+  }), [viewTasks]);
 
-  const filteredTasks = useMemo(
-    () => (filter === "all" ? allFiltered : allFiltered.filter((t) => getStatus(t) === filter)),
-    [allFiltered, filter]
+  // Дерево задач верхнего уровня с учётом статус-фильтра, отсортированное по дедлайну.
+  const rootNodes = useMemo(() => {
+    const tree = buildTaskTree(viewTasks);
+    const filtered = filter === "all" ? tree : tree.filter((n) => nodeMatchesFilter(n, filter));
+    return [...filtered].sort((a, b) => {
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    });
+  }, [viewTasks, filter]);
+
+  const groups = useMemo(
+    () => groupTasks(rootNodes, groupBy, projects),
+    [rootNodes, groupBy, projects]
   );
 
-  const sortedTasks = useMemo(
-    () =>
-      [...filteredTasks].sort((a, b) => {
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      }),
-    [filteredTasks]
-  );
+  // Закрытие модала задачи/подзадачи и сброс контекста подзадачи.
+  const closeTaskModal = () => {
+    setShowTask(false);
+    setEditingTask(null);
+    setAddingSubtaskParent(null);
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -602,6 +717,11 @@ export default function App() {
           delProj={delProj}
           setShowTask={setShowTask}
           setSidebarOpen={setSidebarOpen}
+          showViewControls={showViewControls}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          groupBy={groupBy}
+          setGroupBy={setGroupBy}
           pomoTask={tasks.find((t) => t.id === pomoTaskId) || null}
           pomoTimeLeft={pomoTimeLeft}
           pomoIsRunning={pomoIsRunning}
@@ -617,97 +737,221 @@ export default function App() {
             tasks={scopeTasks}
             projects={projects.filter((p) => p.scope === scope)}
           />
-        ) : (
-          <>
-            <div
-              style={{
-                display: "flex",
-                gap: 4,
-                padding: "12px 20px 0",
-                background: "white",
-                borderBottom: "1px solid #e2e8f0",
-                overflowX: "auto",
-                flexShrink: 0,
-              }}
-            >
-              {[
-                ["all", "Все"],
-                ["upcoming", "Предстоящие"],
-                ["urgent", "Срочные"],
-                ["overdue", "Просроченные"],
-                ["completed", "Выполненные"],
-              ].map(([key, label]) => {
-                const isActive = filter === key;
-                const countVal = counts[key as keyof typeof counts];
-                const activeColor =
-                  key === "all"
-                    ? proj?.color || "#6366f1"
-                    : STATUS_CONFIG[key as keyof typeof STATUS_CONFIG]?.color || "#6366f1";
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setFilter(key)}
-                    style={{
-                      padding: "7px 14px",
-                      border: "none",
-                      borderRadius: "8px 8px 0 0",
-                      cursor: "pointer",
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      background: isActive ? activeColor : "transparent",
-                      color: isActive ? "white" : "#64748b",
-                    }}
-                  >
-                    {label}
-                    {countVal > 0 ? ` (${countVal})` : ""}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-              {!loaded ? (
-                <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
-                  <div style={{ fontSize: 14 }}>Загрузка задач...</div>
-                </div>
-              ) : sortedTasks.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
-                  <div style={{ fontSize: 52, marginBottom: 12 }}>📝</div>
-                  <p style={{ fontSize: 15, margin: "0 0 6px", fontWeight: 500 }}>Нет задач</p>
-                  <p style={{ fontSize: 13, margin: 0 }}>Нажмите «+ Задача» чтобы добавить</p>
+        ) : isReview ? (
+          <WeeklyReviewView
+            tasks={scopeTasks}
+            projects={projects}
+            onEdit={setEditingTask}
+            onToggleCompleted={handleToggleTaskCompleted}
+            onSetGtd={handleSetGtd}
+          />
+        ) : isInbox ? (
+          <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+            <div style={{ maxWidth: 720, margin: "0 auto" }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                <input
+                  placeholder="Быстрый захват: введите задачу и нажмите Enter"
+                  value={inboxTitle}
+                  onChange={(e) => setInboxTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleQuickAddInbox(inboxTitle);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "11px 14px",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    fontSize: 14,
+                    outline: "none",
+                  }}
+                />
+                <button
+                  onClick={() => handleQuickAddInbox(inboxTitle)}
+                  style={{
+                    padding: "0 18px",
+                    background: "#6366f1",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  Добавить
+                </button>
+              </div>
+              {rootNodes.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
+                  <div style={{ fontSize: 52, marginBottom: 12 }}>📥</div>
+                  <p style={{ fontSize: 15, margin: "0 0 6px", fontWeight: 500 }}>Входящие пусты</p>
+                  <p style={{ fontSize: 13, margin: 0 }}>Запишите всё, что нужно сделать, и разберите позже.</p>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {sortedTasks.map((task) => (
+                  {rootNodes.map((node) => (
                     <TaskItem
-                      key={task.id}
-                      task={task}
+                      key={node.id}
+                      node={node}
                       projects={projects}
-                      isAllView={isAllView}
+                      isAllView={true}
+                      depth={0}
+                      pomoTaskId={pomoTaskId}
                       onToggleCompleted={handleToggleTaskCompleted}
                       onDelete={handleDeleteTask}
-                      onEdit={setEditingTask}
+                      onEdit={(n) => setEditingTask(n)}
                       onStartPomodoro={handleStartPomoForTask}
-                      isFocusing={pomoTaskId === task.id}
+                      onAddSubtask={(n) => setAddingSubtaskParent(n)}
+                      onMove={handleMoveTask}
                     />
                   ))}
                 </div>
               )}
             </div>
+          </div>
+        ) : (
+          <>
+            {viewMode === "list" && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 4,
+                  padding: "12px 20px 0",
+                  background: "white",
+                  borderBottom: "1px solid #e2e8f0",
+                  overflowX: "auto",
+                  flexShrink: 0,
+                }}
+              >
+                {[
+                  ["all", "Все"],
+                  ["upcoming", "Предстоящие"],
+                  ["urgent", "Срочные"],
+                  ["overdue", "Просроченные"],
+                  ["completed", "Выполненные"],
+                ].map(([key, label]) => {
+                  const isActive = filter === key;
+                  const countVal = counts[key as keyof typeof counts];
+                  const activeColor =
+                    key === "all"
+                      ? proj?.color || "#6366f1"
+                      : STATUS_CONFIG[key as keyof typeof STATUS_CONFIG]?.color || "#6366f1";
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setFilter(key)}
+                      style={{
+                        padding: "7px 14px",
+                        border: "none",
+                        borderRadius: "8px 8px 0 0",
+                        cursor: "pointer",
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                        background: isActive ? activeColor : "transparent",
+                        color: isActive ? "white" : "#64748b",
+                      }}
+                    >
+                      {label}
+                      {countVal > 0 ? ` (${countVal})` : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {viewMode === "calendar" ? (
+              <CalendarView tasks={viewTasks} projects={projects} onEdit={setEditingTask} />
+            ) : viewMode === "matrix" ? (
+              <MatrixView
+                tasks={viewTasks}
+                projects={projects}
+                onEdit={setEditingTask}
+                onToggleCompleted={handleToggleTaskCompleted}
+              />
+            ) : (
+              <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+                {!loaded ? (
+                  <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
+                    <div style={{ fontSize: 14 }}>Загрузка задач...</div>
+                  </div>
+                ) : rootNodes.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
+                    <div style={{ fontSize: 52, marginBottom: 12 }}>📝</div>
+                    <p style={{ fontSize: 15, margin: "0 0 6px", fontWeight: 500 }}>Нет задач</p>
+                    <p style={{ fontSize: 13, margin: 0 }}>Нажмите «+ Задача» чтобы добавить</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                    {groups.map((group) => (
+                      <div key={group.key}>
+                        {group.label && (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              margin: "0 0 10px 2px",
+                            }}
+                          >
+                            {group.color && (
+                              <span
+                                style={{
+                                  width: 9,
+                                  height: 9,
+                                  borderRadius: "50%",
+                                  background: group.color,
+                                }}
+                              />
+                            )}
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>
+                              {group.label}
+                            </span>
+                            <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                              {group.nodes.length}
+                            </span>
+                          </div>
+                        )}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {group.nodes.map((node) => (
+                            <TaskItem
+                              key={`${group.key}:${node.id}`}
+                              node={node}
+                              projects={projects}
+                              isAllView={isAllView}
+                              depth={0}
+                              pomoTaskId={pomoTaskId}
+                              onToggleCompleted={handleToggleTaskCompleted}
+                              onDelete={handleDeleteTask}
+                              onEdit={(n) => setEditingTask(n)}
+                              onStartPomodoro={handleStartPomoForTask}
+                              onAddSubtask={(n) => setAddingSubtaskParent(n)}
+                              onMove={handleMoveTask}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {(showTask || editingTask) && (
+      {(showTask || editingTask || addingSubtaskParent) && (
         <TaskModal
-          onClose={() => { setShowTask(false); setEditingTask(null); }}
+          onClose={closeTaskModal}
           onAddTask={(taskData) => {
             if (editingTask) handleUpdateTask(editingTask.id, taskData);
-            else handleAddTask(taskData);
+            else handleAddTask(taskData, addingSubtaskParent?.id ?? null);
           }}
           projColor={proj?.color}
           taskToEdit={editingTask || undefined}
+          projects={projects}
+          defaultProjectId={defaultProjectId}
+          parentTask={addingSubtaskParent || undefined}
         />
       )}
 

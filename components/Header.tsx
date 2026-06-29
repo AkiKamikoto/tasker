@@ -1,7 +1,22 @@
 
 
 import PomodoroWidget from "./PomodoroWidget";
-import { Task } from "../types";
+import { Task, ViewMode, GroupBy } from "../types";
+
+const VIEW_MODES: { value: ViewMode; icon: string; label: string }[] = [
+  { value: "list", icon: "☰", label: "Список" },
+  { value: "calendar", icon: "📅", label: "Календарь" },
+  { value: "matrix", icon: "▦", label: "Матрица" },
+];
+
+const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
+  { value: "none", label: "Без группировки" },
+  { value: "project", label: "По проекту" },
+  { value: "date", label: "По дате" },
+  { value: "difficulty", label: "По сложности" },
+  { value: "gtdStatus", label: "По GTD-статусу" },
+  { value: "context", label: "По контексту" },
+];
 
 interface HeaderProps {
   projName: string | undefined;
@@ -14,6 +29,11 @@ interface HeaderProps {
   delProj: (id: string) => void;
   setShowTask: (show: boolean) => void;
   setSidebarOpen: (f: (prev: boolean) => boolean) => void;
+  showViewControls: boolean;
+  viewMode: ViewMode;
+  setViewMode: (m: ViewMode) => void;
+  groupBy: GroupBy;
+  setGroupBy: (g: GroupBy) => void;
   pomoTask: Task | null;
   pomoTimeLeft: number;
   pomoIsRunning: boolean;
@@ -35,6 +55,11 @@ export default function Header({
   delProj,
   setShowTask,
   setSidebarOpen,
+  showViewControls,
+  viewMode,
+  setViewMode,
+  groupBy,
+  setGroupBy,
   pomoTask,
   pomoTimeLeft,
   pomoIsRunning,
@@ -98,6 +123,58 @@ export default function Header({
         {projName}
       </h1>
 
+      {showViewControls && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <div style={{ display: "flex", background: "#f1f5f9", borderRadius: 8, padding: 3 }}>
+            {VIEW_MODES.map((m) => {
+              const active = viewMode === m.value;
+              return (
+                <button
+                  key={m.value}
+                  onClick={() => setViewMode(m.value)}
+                  title={m.label}
+                  style={{
+                    border: "none",
+                    background: active ? "white" : "transparent",
+                    color: active ? "#1e293b" : "#64748b",
+                    borderRadius: 6,
+                    padding: "5px 10px",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    boxShadow: active ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                  }}
+                >
+                  {m.icon}
+                </button>
+              );
+            })}
+          </div>
+          {viewMode === "list" && (
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                padding: "6px 8px",
+                fontSize: 12.5,
+                color: "#475569",
+                background: "white",
+                cursor: "pointer",
+                outline: "none",
+              }}
+            >
+              {GROUP_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
       <PomodoroWidget
         activeTask={pomoTask}
         timeLeft={pomoTimeLeft}
@@ -127,7 +204,7 @@ export default function Header({
           </button>
         )}
 
-        {!isStats && selProj !== "default-work" && selProj !== "default-personal" && !isAllView && (
+        {!isStats && !isAllView && !selProj.startsWith("__") && selProj !== "default-work" && selProj !== "default-personal" && (
           <button
             onClick={() => delProj(selProj)}
             style={{

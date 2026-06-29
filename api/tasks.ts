@@ -31,6 +31,11 @@ function toApiTask(t: any) {
     tags: t.tags ?? [],
     completed: !!t.completed,
     pomodoros: t.pomodoros ?? 0,
+    parentId: t.parent_id ?? null,
+    recurrence: t.recurrence ?? null,
+    urgent: !!t.urgent,
+    important: !!t.important,
+    gtdStatus: t.gtd_status ?? "inbox",
   };
 }
 
@@ -100,6 +105,11 @@ export default async function handler(req: any, res: any) {
         completed: body.completed ?? false,
         notified: false,
         pomodoros: 0,
+        parent_id: body.parentId ?? body.parent_id ?? null,
+        recurrence: body.recurrence ?? null,
+        urgent: body.urgent ?? false,
+        important: body.important ?? false,
+        gtd_status: body.gtdStatus ?? body.gtd_status ?? "inbox",
       };
       const { data, error } = await db.from("tasks").insert(row).select().single();
       if (error) throw error;
@@ -126,6 +136,13 @@ export default async function handler(req: any, res: any) {
       if (body.estM !== undefined) patch.est_m = body.estM;
       if (body.tags !== undefined) patch.tags = body.tags;
       if (body.completed !== undefined) patch.completed = body.completed;
+      if (body.parentId !== undefined || body.parent_id !== undefined)
+        patch.parent_id = body.parentId ?? body.parent_id;
+      if (body.recurrence !== undefined) patch.recurrence = body.recurrence;
+      if (body.urgent !== undefined) patch.urgent = body.urgent;
+      if (body.important !== undefined) patch.important = body.important;
+      if (body.gtdStatus !== undefined || body.gtd_status !== undefined)
+        patch.gtd_status = body.gtdStatus ?? body.gtd_status;
 
       if (Object.keys(patch).length === 0) {
         res.status(400).json({ error: "Нет полей для изменения" });

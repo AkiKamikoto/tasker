@@ -42,6 +42,9 @@ export default function Sidebar({
   const allBadgeCount = tasks.filter(
     (t) => !t.completed && activeProjectIds.includes(t.projectId)
   ).length;
+  const inboxBadgeCount = tasks.filter(
+    (t) => !t.completed && t.gtdStatus === "inbox" && activeProjectIds.includes(t.projectId)
+  ).length;
 
   return (
     <div
@@ -113,7 +116,9 @@ export default function Sidebar({
 
       {/* Special views */}
       {[
+        { id: "__inbox__", icon: "📥", label: "Входящие", badge: inboxBadgeCount },
         { id: "__all__", icon: "🗂", label: "Все задачи", badge: allBadgeCount },
+        { id: "__review__", icon: "🔄", label: "Обзор", badge: null },
         { id: "__stats__", icon: "📊", label: "Статистика", badge: null },
       ].map((v) => (
         <div
