@@ -103,7 +103,7 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
       {/* Progress bar */}
       <div
         style={{
-          background: "white",
+          background: "var(--surface)",
           borderRadius: 12,
           padding: "18px 20px",
           boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
@@ -114,7 +114,7 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
           style={{
             fontSize: 13,
             fontWeight: 600,
-            color: "#1e293b",
+            color: "var(--text)",
             marginBottom: 10,
           }}
         >
@@ -122,7 +122,7 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
         </div>
         <div
           style={{
-            background: "#f1f5f9",
+            background: "var(--surface-2)",
             borderRadius: 99,
             height: 12,
             overflow: "hidden",
@@ -138,7 +138,7 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
             }}
           />
         </div>
-        <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
           {doneTasks} из {totalTasks} задач выполнено
         </div>
       </div>
@@ -155,7 +155,7 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
         {/* By difficulty */}
         <div
           style={{
-            background: "white",
+            background: "var(--surface)",
             borderRadius: 12,
             padding: "18px 20px",
             boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
@@ -165,7 +165,7 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: "#1e293b",
+              color: "var(--text)",
               marginBottom: 14,
             }}
           >
@@ -184,11 +184,11 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
                 <span style={{ color: d.color, fontWeight: 600 }}>
                   {d.label}
                 </span>
-                <span style={{ color: "#64748b" }}>
+                <span style={{ color: "var(--text-muted)" }}>
                   {d.done}/{d.count}
                 </span>
               </div>
-              <div style={{ background: "#f1f5f9", borderRadius: 99, height: 7 }}>
+              <div style={{ background: "var(--surface-2)", borderRadius: 99, height: 7 }}>
                 <div
                   style={{
                     width: `${d.count ? Math.round((d.done / d.count) * 100) : 0}%`,
@@ -205,7 +205,7 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
         {/* By project */}
         <div
           style={{
-            background: "white",
+            background: "var(--surface)",
             borderRadius: 12,
             padding: "18px 20px",
             boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
@@ -215,14 +215,14 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: "#1e293b",
+              color: "var(--text)",
               marginBottom: 14,
             }}
           >
             По проектам
           </div>
           {byProj.length === 0 && (
-            <div style={{ fontSize: 13, color: "#94a3b8" }}>Нет данных</div>
+            <div style={{ fontSize: 13, color: "var(--text-faint)" }}>Нет данных</div>
           )}
           {byProj.map((p) => (
             <div key={p.id} style={{ marginBottom: 12 }}>
@@ -237,11 +237,11 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
                 <span style={{ color: p.color, fontWeight: 600 }}>
                   {p.name}
                 </span>
-                <span style={{ color: "#64748b" }}>
+                <span style={{ color: "var(--text-muted)" }}>
                   {p.done}/{p.total}
                 </span>
               </div>
-              <div style={{ background: "#f1f5f9", borderRadius: 99, height: 7 }}>
+              <div style={{ background: "var(--surface-2)", borderRadius: 99, height: 7 }}>
                 <div
                   style={{
                     width: `${Math.round((p.done / p.total) * 100)}%`,
@@ -260,7 +260,7 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
       {tagCounts.length > 0 && (
         <div
           style={{
-            background: "white",
+            background: "var(--surface)",
             borderRadius: 12,
             padding: "18px 20px",
             boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
@@ -270,7 +270,7 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: "#1e293b",
+              color: "var(--text)",
               marginBottom: 12,
             }}
           >
@@ -282,14 +282,14 @@ export default function StatsView({ tasks, projects }: StatsViewProps) {
                 key={tag}
                 style={{
                   padding: "4px 12px",
-                  background: "#f1f5f9",
+                  background: "var(--surface-2)",
                   borderRadius: 99,
                   fontSize: 12.5,
-                  color: "#334155",
+                  color: "var(--text)",
                   fontWeight: 500,
                 }}
               >
-                #{tag} <span style={{ color: "#94a3b8" }}>({count})</span>
+                #{tag} <span style={{ color: "var(--text-faint)" }}>({count})</span>
               </span>
             ))}
           </div>

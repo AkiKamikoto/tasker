@@ -1,0 +1,116 @@
+/* ─── Тема и анимации ──────────────────────────────────────────────────────────
+   Цвета вынесены в CSS-переменные, чтобы переключать светлую/тёмную тему,
+   акцент, плотность и масштаб из настроек. Компоненты используют var(--…). */
+
+:root {
+  --canvas: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: #f8fafc;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --border: #e2e8f0;
+  --accent: #6366f1;
+
+  --sidebar-bg: #1e293b;
+  --sidebar-bg-2: #0f172a;
+  --sidebar-hover: #334155;
+  --sidebar-text: #e2e8f0;
+
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.07);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.25);
+  --overlay: rgba(0, 0, 0, 0.45);
+
+  /* плотность */
+  --card-pad: 14px 18px;
+  --list-gap: 10px;
+  --radius: 12px;
+}
+
+:root[data-theme="dark"] {
+  --canvas: #0b1220;
+  --surface: #141f33;
+  --surface-2: #1d2a42;
+  --surface-3: #0f1a2e;
+  --text: #e6edf6;
+  --text-muted: #9fb0c3;
+  --text-faint: #6f8198;
+  --border: #26354c;
+  --accent: #818cf8;
+
+  --sidebar-bg: #0b1220;
+  --sidebar-bg-2: #070d18;
+  --sidebar-hover: #1d2a42;
+  --sidebar-text: #e6edf6;
+
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --overlay: rgba(0, 0, 0, 0.6);
+}
+
+:root[data-density="compact"] {
+  --card-pad: 9px 12px;
+  --list-gap: 6px;
+}
+:root[data-density="comfortable"] {
+  --card-pad: 18px 22px;
+  --list-gap: 14px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--canvas);
+  transition: background 0.2s ease;
+}
+
+/* ─── Анимации ──────────────────────────────────────────────────────────────── */
+@keyframes tmFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes tmPop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes tmSlideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.tm-backdrop { animation: tmFade 0.15s ease; }
+.tm-modal { animation: tmPop 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.tm-card {
+  animation: tmSlideUp 0.18s ease;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, opacity 0.25s ease,
+    background 0.2s ease, border-color 0.2s ease;
+}
+.tm-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.tm-toast { animation: tmSlideUp 0.2s ease; }
+.tm-fade { animation: tmFade 0.2s ease; }
+
+/* Мягкие переходы для интерактивных элементов */
+button {
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    transform 0.08s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+button:active { transform: scale(0.97); }
+input,
+textarea,
+select {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.2s ease,
+    color 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

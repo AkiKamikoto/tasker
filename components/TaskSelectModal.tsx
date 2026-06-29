@@ -33,7 +33,7 @@ export default function TaskSelectModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.45)",
+        background: "var(--overlay)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -43,7 +43,7 @@ export default function TaskSelectModal({
     >
       <div
         style={{
-          background: "white",
+          background: "var(--surface)",
           borderRadius: 16,
           padding: 24,
           width: 400,
@@ -56,7 +56,7 @@ export default function TaskSelectModal({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", marginBottom: 16, gap: 10 }}>
-          <h3 style={{ margin: 0, fontSize: 16, color: "#1e293b", flex: 1 }}>
+          <h3 style={{ margin: 0, fontSize: 16, color: "var(--text)", flex: 1 }}>
             Выберите задачу для фокуса 🍅
           </h3>
           <button
@@ -66,7 +66,7 @@ export default function TaskSelectModal({
               border: "none",
               fontSize: 22,
               cursor: "pointer",
-              color: "#94a3b8",
+              color: "var(--text-faint)",
               lineHeight: 1,
             }}
           >
@@ -95,8 +95,8 @@ export default function TaskSelectModal({
               cursor: "pointer",
               fontSize: 13.5,
               fontWeight: 600,
-              color: "#64748b",
-              background: currentTaskId === null ? "#f8fafc" : "transparent",
+              color: "var(--text-muted)",
+              background: currentTaskId === null ? "var(--surface-3)" : "transparent",
               transition: "all 0.15s",
               textAlign: "center",
             }}
@@ -107,7 +107,7 @@ export default function TaskSelectModal({
           <div style={{ borderBottom: "1px solid #f1f5f9", margin: "6px 0" }} />
 
           {filteredTasks.length === 0 ? (
-            <div style={{ padding: "20px 0", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+            <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-faint)", fontSize: 13 }}>
               Задачи не найдены
             </div>
           ) : (
@@ -122,7 +122,7 @@ export default function TaskSelectModal({
                   style={{
                     padding: "12px 14px",
                     borderRadius: 8,
-                    border: `1px solid ${isActive ? "#ef4444" : "#e2e8f0"}`,
+                    border: `1px solid ${isActive ? "#ef4444" : "var(--border)"}`,
                     background: isActive ? "#fef2f2" : "white",
                     cursor: "pointer",
                     transition: "all 0.15s",
@@ -136,7 +136,7 @@ export default function TaskSelectModal({
                       style={{
                         fontSize: 13.5,
                         fontWeight: 600,
-                        color: "#1e293b",
+                        color: "var(--text)",
                         flex: 1,
                       }}
                     >
@@ -159,7 +159,7 @@ export default function TaskSelectModal({
                           background: proj.color,
                         }}
                       />
-                      <span style={{ fontSize: 11, color: "#64748b" }}>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
                         {proj.name}
                       </span>
                     </div>

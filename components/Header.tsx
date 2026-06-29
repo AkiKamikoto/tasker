@@ -73,8 +73,8 @@ export default function Header({
     <div
       style={{
         padding: "14px 20px",
-        borderBottom: "1px solid #e2e8f0",
-        background: "white",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--surface)",
         display: "flex",
         alignItems: "center",
         gap: 10,
@@ -88,7 +88,7 @@ export default function Header({
           border: "none",
           cursor: "pointer",
           fontSize: 18,
-          color: "#64748b",
+          color: "var(--text-muted)",
           padding: 4,
           borderRadius: 6,
         }}
@@ -113,7 +113,7 @@ export default function Header({
           margin: 0,
           fontSize: 17,
           fontWeight: 700,
-          color: "#1e293b",
+          color: "var(--text)",
           flex: 1,
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -125,7 +125,7 @@ export default function Header({
 
       {showViewControls && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <div style={{ display: "flex", background: "#f1f5f9", borderRadius: 8, padding: 3 }}>
+          <div style={{ display: "flex", background: "var(--surface-2)", borderRadius: 8, padding: 3 }}>
             {VIEW_MODES.map((m) => {
               const active = viewMode === m.value;
               return (
@@ -135,8 +135,8 @@ export default function Header({
                   title={m.label}
                   style={{
                     border: "none",
-                    background: active ? "white" : "transparent",
-                    color: active ? "#1e293b" : "#64748b",
+                    background: active ? "var(--surface)" : "transparent",
+                    color: active ? "var(--text)" : "var(--text-muted)",
                     borderRadius: 6,
                     padding: "5px 10px",
                     cursor: "pointer",
@@ -155,12 +155,12 @@ export default function Header({
               value={groupBy}
               onChange={(e) => setGroupBy(e.target.value as GroupBy)}
               style={{
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border)",
                 borderRadius: 8,
                 padding: "6px 8px",
                 fontSize: 12.5,
-                color: "#475569",
-                background: "white",
+                color: "var(--text-muted)",
+                background: "var(--surface)",
                 cursor: "pointer",
                 outline: "none",
               }}
@@ -226,7 +226,7 @@ export default function Header({
             onClick={() => setShowTask(true)}
             style={{
               padding: "8px 16px",
-              background: projColor || "#6366f1",
+              background: projColor || "var(--accent)",
               color: "white",
               border: "none",
               borderRadius: 8,

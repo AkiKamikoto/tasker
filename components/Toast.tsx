@@ -39,9 +39,9 @@ export default function Toast({ toasts, onDismiss }: Props) {
               fontSize: 13.5,
               fontWeight: 500,
               lineHeight: 1.4,
-              color: isError ? "#9b1c1c" : "#1e293b",
-              background: isError ? "#fff5f5" : "#f1f5f9",
-              border: `1px solid ${isError ? "#f1c0c0" : "#e2e8f0"}`,
+              color: isError ? "#9b1c1c" : "var(--text)",
+              background: isError ? "#fff5f5" : "var(--surface-2)",
+              border: `1px solid ${isError ? "#f1c0c0" : "var(--border)"}`,
               boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               maxWidth: 360,
             }}

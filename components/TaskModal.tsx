@@ -184,11 +184,11 @@ export default function TaskModal({
   const flagBtn = (active: boolean, color: string): React.CSSProperties => ({
     flex: 1,
     padding: "8px",
-    border: `2px solid ${active ? color : "#e2e8f0"}`,
+    border: `2px solid ${active ? color : "var(--border)"}`,
     borderRadius: 8,
     cursor: "pointer",
-    background: active ? `${color}15` : "white",
-    color: active ? color : "#64748b",
+    background: active ? `${color}15` : "var(--surface)",
+    color: active ? color : "var(--text-muted)",
     fontWeight: 600,
     fontSize: 13,
     transition: "all .15s",
@@ -197,10 +197,11 @@ export default function TaskModal({
   return (
     <div
       {...backdropProps}
+      className="tm-backdrop"
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.45)",
+        background: "var(--overlay)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -210,8 +211,9 @@ export default function TaskModal({
     >
       <div
         onKeyDown={onKeyDownModal}
+        className="tm-modal"
         style={{
-          background: "white",
+          background: "var(--surface)",
           borderRadius: 16,
           padding: 28,
           width: 500,
@@ -219,11 +221,11 @@ export default function TaskModal({
           boxSizing: "border-box",
           maxHeight: "90vh",
           overflowY: "auto",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+          boxShadow: "var(--shadow-lg)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", marginBottom: 20, gap: 10 }}>
-          <h3 style={{ margin: 0, fontSize: 17, color: "#1e293b", flex: 1 }}>
+          <h3 style={{ margin: 0, fontSize: 17, color: "var(--text)", flex: 1 }}>
             {taskToEdit
               ? "Редактирование задачи"
               : parentTask
@@ -237,7 +239,7 @@ export default function TaskModal({
               border: "none",
               fontSize: 22,
               cursor: "pointer",
-              color: "#94a3b8",
+              color: "var(--text-faint)",
             }}
           >
             ×
@@ -248,14 +250,14 @@ export default function TaskModal({
           <div
             style={{
               fontSize: 12.5,
-              color: "#64748b",
-              background: "#f8fafc",
+              color: "var(--text-muted)",
+              background: "var(--surface-2)",
               borderRadius: 8,
               padding: "8px 10px",
               marginBottom: 14,
             }}
           >
-            Подзадача для: <b style={{ color: "#334155" }}>{parentTask.title}</b>
+            Подзадача для: <b style={{ color: "var(--text)" }}>{parentTask.title}</b>
             {parentProj ? ` · ${parentProj.name}` : ""}
           </div>
         )}
@@ -279,7 +281,7 @@ export default function TaskModal({
           {/* Шаблоны — предзаполняют поля формы */}
           {templates.length > 0 && (
             <div>
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Шаблоны</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Шаблоны</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {templates.map((tpl) => (
                   <button
@@ -287,12 +289,12 @@ export default function TaskModal({
                     onClick={() => applyTpl(tpl)}
                     style={{
                       padding: "5px 10px",
-                      border: "1px solid #e2e8f0",
+                      border: "1px solid var(--border)",
                       borderRadius: 99,
-                      background: "#f8fafc",
+                      background: "var(--surface-2)",
                       cursor: "pointer",
                       fontSize: 12.5,
-                      color: "#475569",
+                      color: "var(--text-muted)",
                     }}
                   >
                     {tpl.icon || "📄"} {tpl.name}
@@ -305,7 +307,7 @@ export default function TaskModal({
           {/* Проект (перемещение между проектами/пространствами) */}
           {!parentTask && (
             <div>
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>Проект</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 5 }}>Проект</div>
               <select
                 {...inp()}
                 value={form.projectId}
@@ -331,7 +333,7 @@ export default function TaskModal({
 
           <div style={{ display: "flex", gap: 10 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 5 }}>
                 Дата дедлайна (необязательно)
               </div>
               <input
@@ -342,7 +344,7 @@ export default function TaskModal({
               />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 5 }}>
                 Время (необязательно)
               </div>
               <input
@@ -356,7 +358,7 @@ export default function TaskModal({
 
           {/* Повтор */}
           <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>Повтор</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 5 }}>Повтор</div>
             <div style={{ display: "flex", gap: 10 }}>
               <select
                 {...inp({ style: { flex: 2 } })}
@@ -373,7 +375,7 @@ export default function TaskModal({
               </select>
               {form.recurrenceFreq !== "none" && (
                 <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 12, color: "#94a3b8" }}>каждые</span>
+                  <span style={{ fontSize: 12, color: "var(--text-faint)" }}>каждые</span>
                   <input
                     {...inp({ style: { width: 64 } })}
                     type="number"
@@ -394,7 +396,7 @@ export default function TaskModal({
 
           {/* Матрица Эйзенхауэра */}
           <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
               Приоритет (матрица Эйзенхауэра)
             </div>
             <div style={{ display: "flex", gap: 8 }}>
@@ -415,7 +417,7 @@ export default function TaskModal({
 
           {/* GTD-статус */}
           <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>Статус GTD</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 5 }}>Статус GTD</div>
             <select
               {...inp()}
               value={form.gtdStatus}
@@ -433,7 +435,7 @@ export default function TaskModal({
 
           {/* Difficulty */}
           <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>Сложность</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>Сложность</div>
             <div style={{ display: "flex", gap: 8 }}>
               {Object.entries(DIFFICULTY).map(([key, cfg]) => (
                 <button
@@ -445,12 +447,12 @@ export default function TaskModal({
                     flex: 1,
                     padding: "8px",
                     border: `2px solid ${
-                      form.difficulty === key ? cfg.color : "#e2e8f0"
+                      form.difficulty === key ? cfg.color : "var(--border)"
                     }`,
                     borderRadius: 8,
                     cursor: "pointer",
-                    background: form.difficulty === key ? cfg.bg : "white",
-                    color: form.difficulty === key ? cfg.color : "#64748b",
+                    background: form.difficulty === key ? cfg.bg : "var(--surface)",
+                    color: form.difficulty === key ? cfg.color : "var(--text-muted)",
                     fontWeight: 600,
                     fontSize: 13,
                     transition: "all .15s",
@@ -464,12 +466,12 @@ export default function TaskModal({
 
           {/* Time estimate */}
           <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
               Сколько времени потребуется
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>Часы</div>
+                <div style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 4 }}>Часы</div>
                 <input
                   {...inp()}
                   type="number"
@@ -483,7 +485,7 @@ export default function TaskModal({
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>Минуты</div>
+                <div style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 4 }}>Минуты</div>
                 <input
                   {...inp()}
                   type="number"
@@ -501,12 +503,12 @@ export default function TaskModal({
 
           {/* Tags / контексты (@) */}
           <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
               Теги и контексты (@дом, @звонки…)
             </div>
             <div
               style={{
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border)",
                 borderRadius: 8,
                 padding: "8px 10px",
                 minHeight: 42,
@@ -533,7 +535,7 @@ export default function TaskModal({
                         background: isCtx ? "#eef2ff" : "#eff6ff",
                         borderRadius: 99,
                         fontSize: 12,
-                        color: isCtx ? "#6366f1" : "#3b82f6",
+                        color: isCtx ? "var(--accent)" : "#3b82f6",
                         fontWeight: 500,
                       }}
                     >
@@ -559,7 +561,7 @@ export default function TaskModal({
                   fontSize: 13,
                   width: "100%",
                   background: "transparent",
-                  color: "#334155",
+                  color: "var(--text)",
                 }}
               />
             </div>
@@ -567,7 +569,7 @@ export default function TaskModal({
 
           {/* Reminder */}
           <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>Напомнить</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 5 }}>Напомнить</div>
             <select
               {...inp()}
               value={form.reminder}
@@ -594,13 +596,13 @@ export default function TaskModal({
               border: "none",
               cursor: "pointer",
               fontSize: 12.5,
-              color: "#6366f1",
+              color: "var(--accent)",
               padding: 0,
             }}
           >
             ＋ Сохранить как шаблон
           </button>
-          <span style={{ marginLeft: "auto", fontSize: 11.5, color: "#cbd5e1" }}>
+          <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--text-faint)" }}>
             ⌘/Ctrl + Enter — сохранить
           </span>
         </div>
@@ -611,7 +613,7 @@ export default function TaskModal({
             style={{
               flex: 1,
               padding: "10px",
-              background: "#f1f5f9",
+              background: "var(--surface-2)",
               border: "none",
               borderRadius: 8,
               cursor: "pointer",
@@ -625,7 +627,7 @@ export default function TaskModal({
             style={{
               flex: 2,
               padding: "10px",
-              background: projColor || "#6366f1",
+              background: projColor || "var(--accent)",
               color: "white",
               border: "none",
               borderRadius: 8,
