@@ -1,48 +1,78 @@
 import { useState } from "react";
-import { DifficultyKey, DIFFICULTY, REMINDER_OPTIONS, NewTaskState, Task } from "../types";
+import {
+  DifficultyKey,
+  DIFFICULTY,
+  REMINDER_OPTIONS,
+  RECURRENCE_OPTIONS,
+  GTD_OPTIONS,
+  NewTaskState,
+  Task,
+  Project,
+  RecurrenceRule,
+  GtdStatus,
+} from "../types";
 import { inp } from "../utils";
 import { useModal } from "../lib/useModal";
 
-interface TaskModalProps {
-  onClose: () => void;
-  onAddTask: (taskData: {
-    title: string;
-    desc: string;
-    date: string;
-    time: string;
-    reminder: number;
-    difficulty: DifficultyKey;
-    estH: number;
-    estM: number;
-    tags: string[];
-  }) => void;
-  projColor: string | undefined;
-  taskToEdit?: Task;
+export interface TaskFormData {
+  title: string;
+  desc: string;
+  date: string;
+  time: string;
+  reminder: number;
+  difficulty: DifficultyKey;
+  estH: number;
+  estM: number;
+  tags: string[];
+  projectId: string;
+  recurrence: RecurrenceRule | null;
+  urgent: boolean;
+  important: boolean;
+  gtdStatus: GtdStatus;
 }
 
-const EMPTY_TASK: NewTaskState = {
-  title: "",
-  desc: "",
-  date: "",
-  time: "",
-  reminder: 30,
-  difficulty: "medium",
-  estH: 0,
-  estM: 30,
-  tags: [],
-  tagInput: "",
-};
+interface TaskModalProps {
+  onClose: () => void;
+  onAddTask: (taskData: TaskFormData) => void;
+  projColor: string | undefined;
+  taskToEdit?: Task;
+  projects: Project[];
+  defaultProjectId: string;
+  parentTask?: Task;
+}
 
 export default function TaskModal({
   onClose,
   onAddTask,
   projColor,
   taskToEdit,
+  projects,
+  defaultProjectId,
+  parentTask,
 }: TaskModalProps) {
   const [form, setForm] = useState<NewTaskState>(() => {
+    const base: NewTaskState = {
+      title: "",
+      desc: "",
+      date: "",
+      time: "",
+      reminder: 30,
+      difficulty: "medium",
+      estH: 0,
+      estM: 30,
+      tags: [],
+      tagInput: "",
+      projectId: parentTask ? parentTask.projectId : defaultProjectId,
+      recurrenceFreq: "none",
+      recurrenceInterval: 1,
+      urgent: false,
+      important: false,
+      gtdStatus: parentTask ? "next" : "inbox",
+    };
     if (taskToEdit) {
       const [date, time] = taskToEdit.dueDate.split("T");
       return {
+        ...base,
         title: taskToEdit.title,
         desc: taskToEdit.desc || "",
         date: date || "",
@@ -52,11 +82,17 @@ export default function TaskModal({
         estH: taskToEdit.estH || 0,
         estM: taskToEdit.estM || 0,
         tags: taskToEdit.tags || [],
-        tagInput: "",
+        projectId: taskToEdit.projectId || defaultProjectId,
+        recurrenceFreq: taskToEdit.recurrence?.freq || "none",
+        recurrenceInterval: taskToEdit.recurrence?.interval || 1,
+        urgent: !!taskToEdit.urgent,
+        important: !!taskToEdit.important,
+        gtdStatus: taskToEdit.gtdStatus || "inbox",
       };
     }
-    return EMPTY_TASK;
+    return base;
   });
+  const [error, setError] = useState<string>("");
   const { firstFieldRef, backdropProps } = useModal<HTMLInputElement>(onClose);
 
   const addTaskTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -77,6 +113,10 @@ export default function TaskModal({
 
   const handleSubmit = () => {
     if (!form.title) return;
+    if (form.recurrenceFreq !== "none" && !form.date) {
+      setError("Для повтора нужно указать дату дедлайна.");
+      return;
+    }
     onAddTask({
       title: form.title,
       desc: form.desc,
@@ -87,9 +127,35 @@ export default function TaskModal({
       estH: form.estH,
       estM: form.estM,
       tags: form.tags,
+      projectId: form.projectId,
+      recurrence:
+        form.recurrenceFreq === "none"
+          ? null
+          : { freq: form.recurrenceFreq, interval: Math.max(1, form.recurrenceInterval || 1) },
+      urgent: form.urgent,
+      important: form.important,
+      gtdStatus: form.gtdStatus,
     });
-    setForm(EMPTY_TASK);
   };
+
+  const workProjects = projects.filter((p) => p.scope === "work");
+  const personalProjects = projects.filter((p) => p.scope === "personal");
+  const parentProj = parentTask
+    ? projects.find((p) => p.id === parentTask.projectId)
+    : undefined;
+
+  const flagBtn = (active: boolean, color: string): React.CSSProperties => ({
+    flex: 1,
+    padding: "8px",
+    border: `2px solid ${active ? color : "#e2e8f0"}`,
+    borderRadius: 8,
+    cursor: "pointer",
+    background: active ? `${color}15` : "white",
+    color: active ? color : "#64748b",
+    fontWeight: 600,
+    fontSize: 13,
+    transition: "all .15s",
+  });
 
   return (
     <div
@@ -120,7 +186,11 @@ export default function TaskModal({
       >
         <div style={{ display: "flex", alignItems: "center", marginBottom: 20, gap: 10 }}>
           <h3 style={{ margin: 0, fontSize: 17, color: "#1e293b", flex: 1 }}>
-            {taskToEdit ? "Редактирование задачи" : "Новая задача"}
+            {taskToEdit
+              ? "Редактирование задачи"
+              : parentTask
+              ? "Новая подзадача"
+              : "Новая задача"}
           </h3>
           <button
             onClick={onClose}
@@ -135,6 +205,22 @@ export default function TaskModal({
             ×
           </button>
         </div>
+
+        {parentTask && (
+          <div
+            style={{
+              fontSize: 12.5,
+              color: "#64748b",
+              background: "#f8fafc",
+              borderRadius: 8,
+              padding: "8px 10px",
+              marginBottom: 14,
+            }}
+          >
+            Подзадача для: <b style={{ color: "#334155" }}>{parentTask.title}</b>
+            {parentProj ? ` · ${parentProj.name}` : ""}
+          </div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input
@@ -151,6 +237,33 @@ export default function TaskModal({
             value={form.desc}
             onChange={(e) => setForm((p) => ({ ...p, desc: e.target.value }))}
           />
+
+          {/* Проект (перемещение между проектами/пространствами) */}
+          {!parentTask && (
+            <div>
+              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>Проект</div>
+              <select
+                {...inp()}
+                value={form.projectId}
+                onChange={(e) => setForm((p) => ({ ...p, projectId: e.target.value }))}
+              >
+                <optgroup label="💼 Работа">
+                  {workProjects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="🏡 Личное">
+                  {personalProjects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 10 }}>
             <div style={{ flex: 1 }}>
@@ -177,11 +290,86 @@ export default function TaskModal({
             </div>
           </div>
 
-          {/* Difficulty */}
+          {/* Повтор */}
+          <div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>Повтор</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <select
+                {...inp({ style: { flex: 2 } })}
+                value={form.recurrenceFreq}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, recurrenceFreq: e.target.value as any }))
+                }
+              >
+                {RECURRENCE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              {form.recurrenceFreq !== "none" && (
+                <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, color: "#94a3b8" }}>каждые</span>
+                  <input
+                    {...inp({ style: { width: 64 } })}
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={form.recurrenceInterval}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        recurrenceInterval: Number(e.target.value) || 1,
+                      }))
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Матрица Эйзенхауэра */}
           <div>
             <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-              Сложность
+              Приоритет (матрица Эйзенхауэра)
             </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setForm((p) => ({ ...p, urgent: !p.urgent }))}
+                style={flagBtn(form.urgent, "#ef4444")}
+              >
+                🔥 Срочная
+              </button>
+              <button
+                onClick={() => setForm((p) => ({ ...p, important: !p.important }))}
+                style={flagBtn(form.important, "#3b82f6")}
+              >
+                ⭐ Важная
+              </button>
+            </div>
+          </div>
+
+          {/* GTD-статус */}
+          <div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>Статус GTD</div>
+            <select
+              {...inp()}
+              value={form.gtdStatus}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, gtdStatus: e.target.value as GtdStatus }))
+              }
+            >
+              {GTD_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Difficulty */}
+          <div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>Сложность</div>
             <div style={{ display: "flex", gap: 8 }}>
               {Object.entries(DIFFICULTY).map(([key, cfg]) => (
                 <button
@@ -217,9 +405,7 @@ export default function TaskModal({
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>
-                  Часы
-                </div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>Часы</div>
                 <input
                   {...inp()}
                   type="number"
@@ -228,17 +414,12 @@ export default function TaskModal({
                   placeholder="0"
                   value={form.estH || ""}
                   onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      estH: Number(e.target.value) || 0,
-                    }))
+                    setForm((p) => ({ ...p, estH: Number(e.target.value) || 0 }))
                   }
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>
-                  Минуты
-                </div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>Минуты</div>
                 <input
                   {...inp()}
                   type="number"
@@ -247,20 +428,17 @@ export default function TaskModal({
                   placeholder="30"
                   value={form.estM || ""}
                   onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      estM: Number(e.target.value) || 0,
-                    }))
+                    setForm((p) => ({ ...p, estM: Number(e.target.value) || 0 }))
                   }
                 />
               </div>
             </div>
           </div>
 
-          {/* Tags */}
+          {/* Tags / контексты (@) */}
           <div>
             <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
-              Теги
+              Теги и контексты (@дом, @звонки…)
             </div>
             <div
               style={{
@@ -278,30 +456,33 @@ export default function TaskModal({
                   marginBottom: form.tags.length > 0 ? 8 : 0,
                 }}
               >
-                {form.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                      padding: "3px 10px",
-                      background: "#eff6ff",
-                      borderRadius: 99,
-                      fontSize: 12,
-                      color: "#3b82f6",
-                      fontWeight: 500,
-                    }}
-                  >
-                    #{tag}
+                {form.tags.map((tag) => {
+                  const isCtx = tag.startsWith("@");
+                  return (
                     <span
-                      onClick={() => removeTag(tag)}
-                      style={{ cursor: "pointer", color: "#93c5fd", fontSize: 14, lineHeight: 1 }}
+                      key={tag}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "3px 10px",
+                        background: isCtx ? "#eef2ff" : "#eff6ff",
+                        borderRadius: 99,
+                        fontSize: 12,
+                        color: isCtx ? "#6366f1" : "#3b82f6",
+                        fontWeight: 500,
+                      }}
                     >
-                      ×
+                      {isCtx ? tag : `#${tag}`}
+                      <span
+                        onClick={() => removeTag(tag)}
+                        style={{ cursor: "pointer", color: "#93c5fd", fontSize: 14, lineHeight: 1 }}
+                      >
+                        ×
+                      </span>
                     </span>
-                  </span>
-                ))}
+                  );
+                })}
               </div>
               <input
                 placeholder="Введите тег и нажмите Enter"
@@ -322,9 +503,7 @@ export default function TaskModal({
 
           {/* Reminder */}
           <div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>
-              Напомнить
-            </div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 5 }}>Напомнить</div>
             <select
               {...inp()}
               value={form.reminder}
@@ -338,6 +517,10 @@ export default function TaskModal({
             </select>
           </div>
         </div>
+
+        {error && (
+          <div style={{ marginTop: 12, fontSize: 12.5, color: "#ef4444" }}>{error}</div>
+        )}
 
         <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
           <button

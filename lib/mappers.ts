@@ -19,6 +19,11 @@ export function dbToTask(row: any): Task {
     completed: row.completed,
     notified: row.notified,
     pomodoros: row.pomodoros || 0,
+    parentId: row.parent_id ?? null,
+    recurrence: row.recurrence ?? null,
+    urgent: !!row.urgent,
+    important: !!row.important,
+    gtdStatus: row.gtd_status ?? "inbox",
   };
 }
 
@@ -47,6 +52,11 @@ export function taskToDb(task: Task, userId: string) {
     completed: task.completed,
     notified: task.notified,
     pomodoros: task.pomodoros || 0,
+    parent_id: task.parentId ?? null,
+    recurrence: task.recurrence ?? null,
+    urgent: !!task.urgent,
+    important: !!task.important,
+    gtd_status: task.gtdStatus ?? "inbox",
   };
 }
 
