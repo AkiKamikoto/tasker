@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Session } from "@supabase/supabase-js";
 import {
   Project,
@@ -27,8 +27,10 @@ import TaskSelectModal from "./components/TaskSelectModal";
 import CalendarView from "./components/CalendarView";
 import MatrixView from "./components/MatrixView";
 import WeeklyReviewView from "./components/WeeklyReviewView";
+import QuickAddBar from "./components/QuickAddBar";
 import AuthModal from "./components/AuthModal";
 import Toast from "./components/Toast";
+import { TaskTemplate, BUILT_IN_TEMPLATES, loadUserTemplates, saveUserTemplate } from "./templates";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -57,6 +59,9 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const [inboxTitle, setInboxTitle] = useState<string>("");
+  const [templateForNew, setTemplateForNew] = useState<TaskTemplate | null>(null);
+  const [userTemplates, setUserTemplates] = useState<TaskTemplate[]>([]);
+  const quickAddRef = useRef<HTMLInputElement>(null);
 
   // Pomodoro
   const [pomoTaskId, setPomoTaskId] = useState<string | null>(null);
@@ -130,6 +135,38 @@ export default function App() {
   useEffect(() => {
     if ("Notification" in window) setNotifPerm(Notification.permission);
   }, []);
+
+  // Загрузка пользовательских шаблонов из localStorage.
+  useEffect(() => {
+    setUserTemplates(loadUserTemplates());
+  }, []);
+
+  // Горячая клавиша N: фокус на строке быстрого ввода или открытие формы задачи.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (showTask || editingTask || addingSubtaskParent || showProj || showPomoSelect) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "SELECT" ||
+          el.isContentEditable)
+      )
+        return;
+      // 'n'/'N' (англ.) и 'т'/'Т' (та же клавиша в русской раскладке)
+      if (e.key === "n" || e.key === "N" || e.key === "т" || e.key === "Т") {
+        e.preventDefault();
+        if (quickAddRef.current) quickAddRef.current.focus();
+        else {
+          setTemplateForNew(null);
+          setShowTask(true);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showTask, editingTask, addingSubtaskParent, showProj, showPomoSelect]);
 
   // Авто-сворачивание сайдбара на мобильных, разворачивание на десктопе
   useEffect(() => {
@@ -352,6 +389,44 @@ export default function App() {
       important: false,
       gtdStatus: "inbox",
     });
+  };
+
+  // Быстрое добавление в обычном списке (проект/«Все задачи»): статус GTD «Следующее».
+  const handleQuickAdd = (title: string) => {
+    const t = title.trim();
+    if (!t) return;
+    const projectId = selProj.startsWith("__")
+      ? scope === "work"
+        ? "default-work"
+        : "default-personal"
+      : selProj;
+    handleAddTask({
+      title: t,
+      desc: "",
+      date: "",
+      time: "",
+      reminder: 30,
+      difficulty: "medium",
+      estH: 0,
+      estM: 30,
+      tags: [],
+      projectId,
+      recurrence: null,
+      urgent: false,
+      important: false,
+      gtdStatus: "next",
+    });
+  };
+
+  // Шаблоны: сохранение пользовательского шаблона и создание задачи из шаблона.
+  const handleSaveTemplate = (tpl: TaskTemplate) => {
+    setUserTemplates(saveUserTemplate(tpl));
+    showToast("Шаблон сохранён.");
+  };
+
+  const openFromTemplate = (tpl: TaskTemplate) => {
+    setTemplateForNew(tpl);
+    setShowTask(true);
   };
 
   const handleUpdateTask = async (id: string, taskData: TaskFormData) => {
@@ -629,11 +704,17 @@ export default function App() {
     [rootNodes, groupBy, projects]
   );
 
-  // Закрытие модала задачи/подзадачи и сброс контекста подзадачи.
+  const templates = useMemo(
+    () => [...BUILT_IN_TEMPLATES, ...userTemplates],
+    [userTemplates]
+  );
+
+  // Закрытие модала задачи/подзадачи и сброс контекста подзадачи/шаблона.
   const closeTaskModal = () => {
     setShowTask(false);
     setEditingTask(null);
     setAddingSubtaskParent(null);
+    setTemplateForNew(null);
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -871,6 +952,16 @@ export default function App() {
               />
             ) : (
               <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+                <div style={{ marginBottom: 16 }}>
+                  <QuickAddBar
+                    placeholder="Быстро добавить задачу… (Enter, клавиша N)"
+                    accentColor={proj?.color || "#6366f1"}
+                    onAdd={handleQuickAdd}
+                    inputRef={quickAddRef}
+                    templates={templates}
+                    onPickTemplate={openFromTemplate}
+                  />
+                </div>
                 {!loaded ? (
                   <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
                     <div style={{ fontSize: 14 }}>Загрузка задач...</div>
@@ -952,6 +1043,9 @@ export default function App() {
           projects={projects}
           defaultProjectId={defaultProjectId}
           parentTask={addingSubtaskParent || undefined}
+          templates={templates}
+          onSaveTemplate={handleSaveTemplate}
+          initialTemplate={templateForNew || undefined}
         />
       )}
 

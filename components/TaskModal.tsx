@@ -13,6 +13,7 @@ import {
 } from "../types";
 import { inp } from "../utils";
 import { useModal } from "../lib/useModal";
+import { TaskTemplate, applyTemplate } from "../templates";
 
 export interface TaskFormData {
   title: string;
@@ -39,6 +40,9 @@ interface TaskModalProps {
   projects: Project[];
   defaultProjectId: string;
   parentTask?: Task;
+  templates: TaskTemplate[];
+  onSaveTemplate: (tpl: TaskTemplate) => void;
+  initialTemplate?: TaskTemplate;
 }
 
 export default function TaskModal({
@@ -49,6 +53,9 @@ export default function TaskModal({
   projects,
   defaultProjectId,
   parentTask,
+  templates,
+  onSaveTemplate,
+  initialTemplate,
 }: TaskModalProps) {
   const [form, setForm] = useState<NewTaskState>(() => {
     const base: NewTaskState = {
@@ -90,6 +97,7 @@ export default function TaskModal({
         gtdStatus: taskToEdit.gtdStatus || "inbox",
       };
     }
+    if (initialTemplate) return applyTemplate(base, initialTemplate);
     return base;
   });
   const [error, setError] = useState<string>("");
@@ -138,6 +146,35 @@ export default function TaskModal({
     });
   };
 
+  const applyTpl = (tpl: TaskTemplate) => setForm((f) => applyTemplate(f, tpl));
+
+  const saveAsTemplate = () => {
+    const name = window.prompt("Название шаблона:");
+    if (!name || !name.trim()) return;
+    onSaveTemplate({
+      id: `tpl-user-${Date.now()}`,
+      name: name.trim(),
+      icon: "⭐",
+      difficulty: form.difficulty,
+      estH: form.estH,
+      estM: form.estM,
+      tags: [...form.tags],
+      reminder: form.reminder,
+      urgent: form.urgent,
+      important: form.important,
+      gtdStatus: form.gtdStatus,
+      recurrenceFreq: form.recurrenceFreq,
+      recurrenceInterval: form.recurrenceInterval,
+    });
+  };
+
+  const onKeyDownModal = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   const workProjects = projects.filter((p) => p.scope === "work");
   const personalProjects = projects.filter((p) => p.scope === "personal");
   const parentProj = parentTask
@@ -172,6 +209,7 @@ export default function TaskModal({
       }}
     >
       <div
+        onKeyDown={onKeyDownModal}
         style={{
           background: "white",
           borderRadius: 16,
@@ -237,6 +275,32 @@ export default function TaskModal({
             value={form.desc}
             onChange={(e) => setForm((p) => ({ ...p, desc: e.target.value }))}
           />
+
+          {/* Шаблоны — предзаполняют поля формы */}
+          {templates.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Шаблоны</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {templates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    onClick={() => applyTpl(tpl)}
+                    style={{
+                      padding: "5px 10px",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 99,
+                      background: "#f8fafc",
+                      cursor: "pointer",
+                      fontSize: 12.5,
+                      color: "#475569",
+                    }}
+                  >
+                    {tpl.icon || "📄"} {tpl.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Проект (перемещение между проектами/пространствами) */}
           {!parentTask && (
@@ -522,7 +586,26 @@ export default function TaskModal({
           <div style={{ marginTop: 12, fontSize: 12.5, color: "#ef4444" }}>{error}</div>
         )}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
+          <button
+            onClick={saveAsTemplate}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 12.5,
+              color: "#6366f1",
+              padding: 0,
+            }}
+          >
+            ＋ Сохранить как шаблон
+          </button>
+          <span style={{ marginLeft: "auto", fontSize: 11.5, color: "#cbd5e1" }}>
+            ⌘/Ctrl + Enter — сохранить
+          </span>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
           <button
             onClick={onClose}
             style={{
