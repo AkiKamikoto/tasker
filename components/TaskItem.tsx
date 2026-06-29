@@ -74,18 +74,18 @@ export default function TaskItem({
   return (
     <div>
       <div
+        className="tm-card"
         style={{
           position: "relative",
-          background: "white",
+          background: "var(--surface)",
           borderRadius: 12,
-          padding: "14px 18px",
+          padding: "var(--card-pad)",
           marginLeft: depth * 22,
           boxShadow: isFocusing
             ? "0 0 0 2px #ef4444, 0 4px 12px rgba(239, 68, 68, 0.15)"
-            : "0 1px 4px rgba(0,0,0,0.07)",
+            : "var(--shadow-sm)",
           borderLeft: `4px solid ${cfg.color}`,
           opacity: task.completed ? 0.7 : 1,
-          transition: "all 0.3s ease-in-out",
         }}
       >
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
@@ -125,7 +125,7 @@ export default function TaskItem({
                 style={{
                   fontSize: 14.5,
                   fontWeight: 600,
-                  color: "#1e293b",
+                  color: "var(--text)",
                   textDecoration: task.completed ? "line-through" : "none",
                 }}
               >
@@ -147,14 +147,14 @@ export default function TaskItem({
                 : null}
               {badge(diff.bg, diff.color, diff.label)}
               {hasChildren &&
-                badge("#f8fafc", "#64748b", `✓ ${doneCount}/${children.length}`, "Прогресс подзадач")}
+                badge("var(--surface-2)", "var(--text-muted)", `✓ ${doneCount}/${children.length}`, "Прогресс подзадач")}
               {isAllView && taskProj && (
                 <span
                   style={{
                     fontSize: 11,
                     padding: "2px 8px",
                     borderRadius: 20,
-                    background: "#f8fafc",
+                    background: "var(--surface-2)",
                     color: taskProj.color,
                     fontWeight: 600,
                     border: `1px solid ${taskProj.color}30`,
@@ -165,7 +165,7 @@ export default function TaskItem({
               )}
             </div>
             {task.desc && (
-              <p style={{ margin: "5px 0 0", fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
+              <p style={{ margin: "5px 0 0", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
                 {task.desc}
               </p>
             )}
@@ -180,8 +180,8 @@ export default function TaskItem({
                         fontSize: 11,
                         padding: "2px 8px",
                         borderRadius: 99,
-                        background: isCtx ? "#eef2ff" : "#f1f5f9",
-                        color: isCtx ? "#6366f1" : "#475569",
+                        background: "var(--surface-2)",
+                        color: isCtx ? "var(--accent)" : "var(--text-muted)",
                         fontWeight: isCtx ? 600 : 400,
                       }}
                     >
@@ -197,7 +197,7 @@ export default function TaskItem({
                 display: "flex",
                 gap: 14,
                 fontSize: 12,
-                color: "#94a3b8",
+                color: "var(--text-faint)",
                 flexWrap: "wrap",
               }}
             >
@@ -209,27 +209,27 @@ export default function TaskItem({
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <button onClick={() => onAddSubtask(node)} style={iconBtn("#cbd5e1")} title="Добавить подзадачу">
+            <button onClick={() => onAddSubtask(node)} style={iconBtn("var(--text-faint)")} title="Добавить подзадачу">
               ＋
             </button>
-            <button onClick={() => setShowMove((s) => !s)} style={iconBtn("#cbd5e1")} title="Переместить в проект">
+            <button onClick={() => setShowMove((s) => !s)} style={iconBtn("var(--text-faint)")} title="Переместить в проект">
               ⇄
             </button>
             {!task.completed && (
               <button
                 onClick={() => onStartPomodoro(node)}
-                style={iconBtn(isFocusing ? "#ef4444" : "#cbd5e1")}
+                style={iconBtn(isFocusing ? "#ef4444" : "var(--text-faint)")}
                 title="Запустить фокусировку Помодоро"
               >
                 🍅
               </button>
             )}
-            <button onClick={() => onEdit(node)} style={iconBtn("#cbd5e1")} title="Редактировать">
+            <button onClick={() => onEdit(node)} style={iconBtn("var(--text-faint)")} title="Редактировать">
               ✏️
             </button>
             <button
               onClick={() => onDelete(task.id)}
-              style={{ ...iconBtn("#cbd5e1"), fontSize: 20, padding: "0 2px" }}
+              style={{ ...iconBtn("var(--text-faint)"), fontSize: 20, padding: "0 2px" }}
               title="Удалить"
             >
               ×
@@ -244,17 +244,17 @@ export default function TaskItem({
               right: 14,
               top: 46,
               zIndex: 20,
-              background: "white",
-              border: "1px solid #e2e8f0",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
               borderRadius: 10,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+              boxShadow: "var(--shadow-lg)",
               padding: 6,
               maxHeight: 260,
               overflowY: "auto",
               minWidth: 200,
             }}
           >
-            <div style={{ fontSize: 11, color: "#94a3b8", padding: "4px 8px" }}>
+            <div style={{ fontSize: 11, color: "var(--text-faint)", padding: "4px 8px" }}>
               Переместить в проект
             </div>
             {projects.map((p) => (
@@ -271,14 +271,14 @@ export default function TaskItem({
                   padding: "7px 8px",
                   borderRadius: 6,
                   cursor: "pointer",
-                  background: p.id === task.projectId ? "#f1f5f9" : "transparent",
+                  background: p.id === task.projectId ? "var(--surface-2)" : "transparent",
                   fontSize: 13,
-                  color: "#334155",
+                  color: "var(--text)",
                 }}
               >
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: p.color, flexShrink: 0 }} />
                 <span style={{ flex: 1 }}>{p.name}</span>
-                <span style={{ fontSize: 10, color: "#94a3b8" }}>
+                <span style={{ fontSize: 10, color: "var(--text-faint)" }}>
                   {p.scope === "work" ? "💼" : "🏡"}
                 </span>
               </div>

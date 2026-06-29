@@ -15,6 +15,7 @@ interface SidebarProps {
   onSignOut: () => void;
   isMobile: boolean;
   closeSidebar: () => void;
+  onOpenSettings: () => void;
 }
 
 export default function Sidebar({
@@ -31,6 +32,7 @@ export default function Sidebar({
   onSignOut,
   isMobile,
   closeSidebar,
+  onOpenSettings,
 }: SidebarProps) {
   const handleSelectView = (id: string) => {
     setSelProj(id);
@@ -51,7 +53,7 @@ export default function Sidebar({
       style={{
         width: sidebarOpen ? 240 : 0,
         minWidth: sidebarOpen ? 240 : 0,
-        background: "#1e293b",
+        background: "var(--sidebar-bg)",
         color: "white",
         display: "flex",
         flexDirection: "column",
@@ -79,7 +81,7 @@ export default function Sidebar({
       <div
         style={{
           display: "flex",
-          background: "#0f172a",
+          background: "var(--sidebar-bg-2)",
           borderRadius: 8,
           padding: 4,
           margin: "0 16px 16px",
@@ -112,7 +114,7 @@ export default function Sidebar({
         })}
       </div>
 
-      <div style={{ borderBottom: "1px solid #334155" }} />
+      <div style={{ borderBottom: "1px solid var(--sidebar-hover)" }} />
 
       {/* Special views */}
       {[
@@ -130,7 +132,7 @@ export default function Sidebar({
             gap: 10,
             padding: "10px 20px",
             cursor: "pointer",
-            background: selProj === v.id ? "#334155" : "transparent",
+            background: selProj === v.id ? "var(--sidebar-hover)" : "transparent",
             borderLeft: `3px solid ${
               selProj === v.id
                 ? scope === "work"
@@ -148,7 +150,7 @@ export default function Sidebar({
               style={{
                 fontSize: 11,
                 color: "#94a3b8",
-                background: "#0f172a",
+                background: "var(--sidebar-bg-2)",
                 borderRadius: 10,
                 padding: "1px 7px",
               }}
@@ -187,7 +189,7 @@ export default function Sidebar({
                 gap: 10,
                 padding: "10px 20px",
                 cursor: "pointer",
-                background: selProj === p.id ? "#334155" : "transparent",
+                background: selProj === p.id ? "var(--sidebar-hover)" : "transparent",
                 borderLeft: `3px solid ${selProj === p.id ? p.color : "transparent"}`,
                 transition: "all .15s",
               }}
@@ -218,7 +220,7 @@ export default function Sidebar({
                   style={{
                     fontSize: 11,
                     color: "#94a3b8",
-                    background: "#0f172a",
+                    background: "var(--sidebar-bg-2)",
                     borderRadius: 10,
                     padding: "1px 7px",
                     flexShrink: 0,
@@ -232,13 +234,13 @@ export default function Sidebar({
         })}
       </div>
 
-      <div style={{ padding: "14px 20px", borderTop: "1px solid #334155", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ padding: "14px 20px", borderTop: "1px solid var(--sidebar-hover)", display: "flex", flexDirection: "column", gap: 8 }}>
         <button
           onClick={() => setShowProj(true)}
           style={{
             width: "100%",
             padding: "9px",
-            background: "#334155",
+            background: "var(--sidebar-hover)",
             border: "none",
             borderRadius: 8,
             color: "#94a3b8",
@@ -253,6 +255,26 @@ export default function Sidebar({
           <span style={{ fontSize: 16 }}>+</span> Новый проект
         </button>
 
+        <button
+          onClick={onOpenSettings}
+          style={{
+            width: "100%",
+            padding: "9px",
+            background: "transparent",
+            border: "1px solid var(--sidebar-hover)",
+            borderRadius: 8,
+            color: "#94a3b8",
+            cursor: "pointer",
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+          }}
+        >
+          ⚙️ Оформление
+        </button>
+
         {/* Current user */}
         <button
           onClick={onSignOut}
@@ -261,7 +283,7 @@ export default function Sidebar({
             width: "100%",
             padding: "8px 10px",
             background: "transparent",
-            border: "1px solid #334155",
+            border: "1px solid var(--sidebar-hover)",
             borderRadius: 8,
             cursor: "pointer",
             display: "flex",
@@ -287,7 +309,7 @@ export default function Sidebar({
           >
             {userEmail[0]?.toUpperCase() || "?"}
           </div>
-          <span style={{ fontSize: 12.5, color: "#cbd5e1", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 12.5, color: "var(--text-faint)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {userEmail}
           </span>
           <span style={{ fontSize: 11, color: "#64748b" }}>выйти</span>

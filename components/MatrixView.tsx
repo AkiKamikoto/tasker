@@ -46,13 +46,13 @@ export default function MatrixView({
             >
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: q.color }}>{q.title}</div>
-                <div style={{ fontSize: 11.5, color: "#64748b" }}>
+                <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
                   {q.subtitle} · {items.length}
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {items.length === 0 ? (
-                  <div style={{ fontSize: 12, color: "#94a3b8", padding: "8px 0" }}>—</div>
+                  <div style={{ fontSize: 12, color: "var(--text-faint)", padding: "8px 0" }}>—</div>
                 ) : (
                   items.map((t) => {
                     const proj = projects.find((p) => p.id === t.projectId);
@@ -60,7 +60,7 @@ export default function MatrixView({
                       <div
                         key={t.id}
                         style={{
-                          background: "white",
+                          background: "var(--surface)",
                           borderRadius: 8,
                           padding: "8px 10px",
                           boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
@@ -84,13 +84,13 @@ export default function MatrixView({
                           onClick={() => onEdit(t)}
                           style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
                         >
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
                             {t.title}
                           </div>
                           <div
                             style={{
                               fontSize: 11,
-                              color: "#94a3b8",
+                              color: "var(--text-faint)",
                               display: "flex",
                               gap: 8,
                               marginTop: 2,

@@ -179,12 +179,14 @@ export function groupTasks(
 export const inp = (extra: any = {}) => ({
   style: {
     padding: "10px 14px",
-    border: "1px solid #e2e8f0",
+    border: "1px solid var(--border)",
     borderRadius: 8,
     fontSize: 14,
     outline: "none",
     width: "100%",
     boxSizing: "border-box" as const,
+    background: "var(--surface)",
+    color: "var(--text)",
     ...extra.style,
   },
   ...extra,

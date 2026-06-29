@@ -58,19 +58,19 @@ export default function CalendarView({ tasks, projects, onEdit }: CalendarViewPr
   const month = cursor.getMonth();
 
   const navBtn: React.CSSProperties = {
-    border: "1px solid #e2e8f0",
-    background: "white",
+    border: "1px solid var(--border)",
+    background: "var(--surface)",
     borderRadius: 8,
     padding: "5px 12px",
     cursor: "pointer",
     fontSize: 13,
-    color: "#475569",
+    color: "var(--text-muted)",
   };
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 16, color: "#1e293b", flex: 1 }}>
+        <h2 style={{ margin: 0, fontSize: 16, color: "var(--text)", flex: 1 }}>
           {MONTHS[month]} {cursor.getFullYear()}
         </h2>
         <button style={navBtn} onClick={() => setCursor(new Date(cursor.getFullYear(), month - 1, 1))}>
@@ -94,7 +94,7 @@ export default function CalendarView({ tasks, projects, onEdit }: CalendarViewPr
         {WEEKDAYS.map((w) => (
           <div
             key={w}
-            style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textAlign: "center", padding: 4 }}
+            style={{ fontSize: 11, fontWeight: 600, color: "var(--text-faint)", textAlign: "center", padding: 4 }}
           >
             {w}
           </div>
@@ -109,8 +109,8 @@ export default function CalendarView({ tasks, projects, onEdit }: CalendarViewPr
               key={key}
               style={{
                 minHeight: 92,
-                background: inMonth ? "white" : "#f8fafc",
-                border: isToday ? "2px solid #3b82f6" : "1px solid #e2e8f0",
+                background: inMonth ? "var(--surface)" : "var(--surface-3)",
+                border: isToday ? "2px solid #3b82f6" : "1px solid var(--border)",
                 borderRadius: 8,
                 padding: 6,
                 opacity: inMonth ? 1 : 0.55,
@@ -119,7 +119,7 @@ export default function CalendarView({ tasks, projects, onEdit }: CalendarViewPr
                 gap: 3,
               }}
             >
-              <div style={{ fontSize: 11, fontWeight: 600, color: isToday ? "#3b82f6" : "#64748b" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: isToday ? "#3b82f6" : "var(--text-muted)" }}>
                 {d.getDate()}
               </div>
               {items.slice(0, 4).map((t) => {
@@ -147,7 +147,7 @@ export default function CalendarView({ tasks, projects, onEdit }: CalendarViewPr
                 );
               })}
               {items.length > 4 && (
-                <div style={{ fontSize: 10, color: "#94a3b8" }}>+{items.length - 4}</div>
+                <div style={{ fontSize: 10, color: "var(--text-faint)" }}>+{items.length - 4}</div>
               )}
             </div>
           );

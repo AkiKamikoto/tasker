@@ -31,7 +31,7 @@ export default function ProjectModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.45)",
+        background: "var(--overlay)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -41,7 +41,7 @@ export default function ProjectModal({
     >
       <div
         style={{
-          background: "white",
+          background: "var(--surface)",
           borderRadius: 16,
           padding: 28,
           width: 360,
@@ -50,7 +50,7 @@ export default function ProjectModal({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 17, color: "#1e293b", flex: 1 }}>
+          <h3 style={{ margin: 0, fontSize: 17, color: "var(--text)", flex: 1 }}>
             Новый проект
           </h3>
           <button
@@ -60,7 +60,7 @@ export default function ProjectModal({
               border: "none",
               fontSize: 22,
               cursor: "pointer",
-              color: "#94a3b8",
+              color: "var(--text-faint)",
             }}
           >
             ×
@@ -76,7 +76,7 @@ export default function ProjectModal({
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
         />
 
-        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>Цвет</div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>Цвет</div>
 
         <div
           style={{
@@ -97,7 +97,7 @@ export default function ProjectModal({
                 background: c,
                 cursor: "pointer",
                 border: `3px solid ${
-                  color === c ? "#1e293b" : "transparent"
+                  color === c ? "var(--text)" : "transparent"
                 }`,
                 transition: "border .15s",
               }}
@@ -111,7 +111,7 @@ export default function ProjectModal({
             style={{
               flex: 1,
               padding: "10px",
-              background: "#f1f5f9",
+              background: "var(--surface-2)",
               border: "none",
               borderRadius: 8,
               cursor: "pointer",

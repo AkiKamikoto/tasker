@@ -16,6 +16,7 @@ import { dbToTask, dbToProject, taskToDb, projectToDb } from "./lib/mappers";
 import { POMODORO, NOTIFICATION_CHECK_INTERVAL_MS, BEEP } from "./config";
 import { useToast } from "./lib/useToast";
 import { useMediaQuery } from "./lib/useMediaQuery";
+import { useSettings } from "./lib/useSettings";
 
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -28,6 +29,7 @@ import CalendarView from "./components/CalendarView";
 import MatrixView from "./components/MatrixView";
 import WeeklyReviewView from "./components/WeeklyReviewView";
 import QuickAddBar from "./components/QuickAddBar";
+import SettingsModal from "./components/SettingsModal";
 import AuthModal from "./components/AuthModal";
 import Toast from "./components/Toast";
 import { TaskTemplate, BUILT_IN_TEMPLATES, loadUserTemplates, saveUserTemplate } from "./templates";
@@ -37,6 +39,8 @@ import { TaskTemplate, BUILT_IN_TEMPLATES, loadUserTemplates, saveUserTemplate }
 export default function App() {
   const { toasts, showToast, dismiss } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const { settings, update: updateSettings } = useSettings();
+  const [showSettings, setShowSettings] = useState<boolean>(false);
 
   const [session, setSession] = useState<Session | null>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
@@ -727,11 +731,11 @@ export default function App() {
           height: "100vh",
           alignItems: "center",
           justifyContent: "center",
-          background: "#f8fafc",
+          background: "var(--canvas)",
           fontFamily: "Inter,sans-serif",
         }}
       >
-        <div style={{ color: "#94a3b8", fontSize: 14 }}>Загрузка...</div>
+        <div style={{ color: "var(--text-faint)", fontSize: 14 }}>Загрузка...</div>
       </div>
     );
   }
@@ -746,7 +750,7 @@ export default function App() {
         display: "flex",
         height: "100vh",
         fontFamily: "Inter,sans-serif",
-        background: "#f8fafc",
+        background: "var(--canvas)",
         overflow: "hidden",
       }}
     >
@@ -764,6 +768,7 @@ export default function App() {
         onSignOut={() => supabase.auth.signOut()}
         isMobile={isMobile}
         closeSidebar={() => setSidebarOpen(false)}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
       {isMobile && sidebarOpen && (
@@ -840,17 +845,19 @@ export default function App() {
                   style={{
                     flex: 1,
                     padding: "11px 14px",
-                    border: "1px solid #e2e8f0",
+                    border: "1px solid var(--border)",
                     borderRadius: 8,
                     fontSize: 14,
                     outline: "none",
+                    background: "var(--surface)",
+                    color: "var(--text)",
                   }}
                 />
                 <button
                   onClick={() => handleQuickAddInbox(inboxTitle)}
                   style={{
                     padding: "0 18px",
-                    background: "#6366f1",
+                    background: "var(--accent)",
                     color: "white",
                     border: "none",
                     borderRadius: 8,
@@ -863,7 +870,7 @@ export default function App() {
                 </button>
               </div>
               {rootNodes.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
+                <div style={{ textAlign: "center", padding: "48px 0", color: "var(--text-faint)" }}>
                   <div style={{ fontSize: 52, marginBottom: 12 }}>📥</div>
                   <p style={{ fontSize: 15, margin: "0 0 6px", fontWeight: 500 }}>Входящие пусты</p>
                   <p style={{ fontSize: 13, margin: 0 }}>Запишите всё, что нужно сделать, и разберите позже.</p>
@@ -898,8 +905,8 @@ export default function App() {
                   display: "flex",
                   gap: 4,
                   padding: "12px 20px 0",
-                  background: "white",
-                  borderBottom: "1px solid #e2e8f0",
+                  background: "var(--surface)",
+                  borderBottom: "1px solid var(--border)",
                   overflowX: "auto",
                   flexShrink: 0,
                 }}
@@ -930,7 +937,7 @@ export default function App() {
                         fontWeight: 600,
                         whiteSpace: "nowrap",
                         background: isActive ? activeColor : "transparent",
-                        color: isActive ? "white" : "#64748b",
+                        color: isActive ? "white" : "var(--text-muted)",
                       }}
                     >
                       {label}
@@ -963,11 +970,11 @@ export default function App() {
                   />
                 </div>
                 {!loaded ? (
-                  <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
+                  <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-faint)" }}>
                     <div style={{ fontSize: 14 }}>Загрузка задач...</div>
                   </div>
                 ) : rootNodes.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
+                  <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-faint)" }}>
                     <div style={{ fontSize: 52, marginBottom: 12 }}>📝</div>
                     <p style={{ fontSize: 15, margin: "0 0 6px", fontWeight: 500 }}>Нет задач</p>
                     <p style={{ fontSize: 13, margin: 0 }}>Нажмите «+ Задача» чтобы добавить</p>
@@ -995,10 +1002,10 @@ export default function App() {
                                 }}
                               />
                             )}
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
                               {group.label}
                             </span>
-                            <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                            <span style={{ fontSize: 12, color: "var(--text-faint)" }}>
                               {group.nodes.length}
                             </span>
                           </div>
@@ -1074,6 +1081,14 @@ export default function App() {
             setShowPomoSelect(false);
           }}
           currentTaskId={pomoTaskId}
+        />
+      )}
+
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onChange={updateSettings}
+          onClose={() => setShowSettings(false)}
         />
       )}
 

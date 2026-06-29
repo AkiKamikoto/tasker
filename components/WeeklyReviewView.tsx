@@ -73,7 +73,7 @@ export default function WeeklyReviewView({
           display: "flex",
           alignItems: "center",
           gap: 10,
-          background: "white",
+          background: "var(--surface)",
           borderRadius: 8,
           padding: "8px 12px",
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
@@ -90,13 +90,13 @@ export default function WeeklyReviewView({
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: "#1e293b",
+              color: "var(--text)",
               textDecoration: t.completed ? "line-through" : "none",
             }}
           >
             {t.title}
           </div>
-          <div style={{ fontSize: 11, color: "#94a3b8", display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 11, color: "var(--text-faint)", display: "flex", gap: 8, flexWrap: "wrap" }}>
             {proj && <span style={{ color: proj.color }}>● {proj.name}</span>}
             {t.dueDate && <span>⏰ {fmt(t.dueDate)}</span>}
           </div>
@@ -109,12 +109,12 @@ export default function WeeklyReviewView({
                 onClick={() => onSetGtd(t.id, o.value)}
                 title={`В «${o.label}»`}
                 style={{
-                  border: "1px solid #e2e8f0",
-                  background: "white",
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
                   borderRadius: 6,
                   padding: "3px 7px",
                   fontSize: 11,
-                  color: "#475569",
+                  color: "var(--text-muted)",
                   cursor: "pointer",
                 }}
               >
@@ -130,19 +130,19 @@ export default function WeeklyReviewView({
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
       <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
-        <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>
           Еженедельный обзор по GTD: пройдите по разделам сверху вниз и приведите задачи в порядок.
         </p>
         {sections.map((s) => (
           <div key={s.key}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-              <h3 style={{ margin: 0, fontSize: 14.5, color: "#1e293b" }}>{s.title}</h3>
-              <span style={{ fontSize: 12, color: "#94a3b8" }}>{s.items.length}</span>
+              <h3 style={{ margin: 0, fontSize: 14.5, color: "var(--text)" }}>{s.title}</h3>
+              <span style={{ fontSize: 12, color: "var(--text-faint)" }}>{s.items.length}</span>
             </div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 8 }}>{s.hint}</div>
+            <div style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 8 }}>{s.hint}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {s.items.length === 0 ? (
-                <div style={{ fontSize: 12.5, color: "#cbd5e1" }}>Пусто 🎉</div>
+                <div style={{ fontSize: 12.5, color: "var(--text-faint)" }}>Пусто 🎉</div>
               ) : (
                 s.items.map((t) => row(t, !!s.showGtd))
               )}

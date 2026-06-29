@@ -11,7 +11,7 @@ export default function StatCard({ label, value, color, sub }: StatCardProps) {
   return (
     <div
       style={{
-        background: "white",
+        background: "var(--surface)",
         borderRadius: 12,
         padding: "18px 20px",
         boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
@@ -22,7 +22,7 @@ export default function StatCard({ label, value, color, sub }: StatCardProps) {
       <div
         style={{
           fontSize: 13,
-          color: "#1e293b",
+          color: "var(--text)",
           fontWeight: 600,
           marginTop: 2,
         }}
@@ -30,7 +30,7 @@ export default function StatCard({ label, value, color, sub }: StatCardProps) {
         {label}
       </div>
       {sub && (
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+        <div style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 2 }}>
           {sub}
         </div>
       )}

@@ -41,11 +41,12 @@ export default function QuickAddBar({
         style={{
           flex: 1,
           padding: "10px 14px",
-          border: "1px solid #e2e8f0",
+          border: "1px solid var(--border)",
           borderRadius: 8,
           fontSize: 14,
           outline: "none",
-          background: "white",
+          background: "var(--surface)",
+          color: "var(--text)",
         }}
       />
       {templates.length > 0 && (
@@ -54,12 +55,12 @@ export default function QuickAddBar({
           title="Создать из шаблона"
           style={{
             padding: "0 12px",
-            background: "white",
-            border: "1px solid #e2e8f0",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
             borderRadius: 8,
             cursor: "pointer",
             fontSize: 14,
-            color: "#475569",
+            color: "var(--text-muted)",
           }}
         >
           📋
@@ -89,15 +90,15 @@ export default function QuickAddBar({
             right: 0,
             top: 46,
             zIndex: 30,
-            background: "white",
-            border: "1px solid #e2e8f0",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
             borderRadius: 10,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+            boxShadow: "var(--shadow-lg)",
             padding: 6,
             minWidth: 220,
           }}
         >
-          <div style={{ fontSize: 11, color: "#94a3b8", padding: "4px 8px" }}>Из шаблона</div>
+          <div style={{ fontSize: 11, color: "var(--text-faint)", padding: "4px 8px" }}>Из шаблона</div>
           {templates.map((tpl) => (
             <div
               key={tpl.id}
@@ -113,7 +114,7 @@ export default function QuickAddBar({
                 borderRadius: 6,
                 cursor: "pointer",
                 fontSize: 13,
-                color: "#334155",
+                color: "var(--text)",
               }}
             >
               <span>{tpl.icon || "📄"}</span>
