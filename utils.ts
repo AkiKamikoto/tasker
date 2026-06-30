@@ -111,6 +111,22 @@ export function buildTaskTree(tasks: Task[]): TaskNode[] {
   return roots;
 }
 
+// Сортировка соседей: сначала ручной порядок (order), затем дедлайн.
+export function compareByOrder(a: Task, b: Task): number {
+  if (a.order !== b.order) return a.order - b.order;
+  if (!a.dueDate && !b.dueDate) return 0;
+  if (!a.dueDate) return 1;
+  if (!b.dueDate) return -1;
+  return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+}
+
+// Рекурсивно сортирует дерево узлов по compareByOrder (на месте, возвращает его же).
+export function sortTaskTree(nodes: TaskNode[]): TaskNode[] {
+  nodes.sort(compareByOrder);
+  nodes.forEach((n) => sortTaskTree(n.children));
+  return nodes;
+}
+
 // Все потомки задачи (id) во всём плоском наборе — для каскадного удаления/переноса.
 export function getDescendantIds(tasks: Task[], rootId: string): string[] {
   const childrenMap = new Map<string, string[]>();

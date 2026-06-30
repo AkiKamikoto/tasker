@@ -24,6 +24,7 @@ export function dbToTask(row: any): Task {
     urgent: !!row.urgent,
     important: !!row.important,
     gtdStatus: row.gtd_status ?? "inbox",
+    order: row.sort_order ?? 0,
   };
 }
 
@@ -57,6 +58,7 @@ export function taskToDb(task: Task, userId: string) {
     urgent: !!task.urgent,
     important: !!task.important,
     gtd_status: task.gtdStatus ?? "inbox",
+    sort_order: task.order ?? 0,
   };
 }
 

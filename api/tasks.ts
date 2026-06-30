@@ -36,6 +36,7 @@ function toApiTask(t: any) {
     urgent: !!t.urgent,
     important: !!t.important,
     gtdStatus: t.gtd_status ?? "inbox",
+    order: t.sort_order ?? 0,
   };
 }
 
@@ -110,6 +111,7 @@ export default async function handler(req: any, res: any) {
         urgent: body.urgent ?? false,
         important: body.important ?? false,
         gtd_status: body.gtdStatus ?? body.gtd_status ?? "inbox",
+        sort_order: body.order ?? body.sort_order ?? 0,
       };
       const { data, error } = await db.from("tasks").insert(row).select().single();
       if (error) throw error;
@@ -143,6 +145,8 @@ export default async function handler(req: any, res: any) {
       if (body.important !== undefined) patch.important = body.important;
       if (body.gtdStatus !== undefined || body.gtd_status !== undefined)
         patch.gtd_status = body.gtdStatus ?? body.gtd_status;
+      if (body.order !== undefined || body.sort_order !== undefined)
+        patch.sort_order = body.order ?? body.sort_order;
 
       if (Object.keys(patch).length === 0) {
         res.status(400).json({ error: "Нет полей для изменения" });

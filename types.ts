@@ -65,6 +65,7 @@ export interface Task {
   urgent: boolean;
   important: boolean;
   gtdStatus: GtdStatus;
+  order: number; // ручной порядок среди соседей (меньше — выше)
 }
 
 export interface NewTaskState {

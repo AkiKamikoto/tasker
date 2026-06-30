@@ -23,6 +23,7 @@ describe("dbToTask", () => {
       urgent: true,
       important: false,
       gtd_status: "next",
+      sort_order: 5,
     };
     expect(dbToTask(row)).toEqual({
       id: "t1",
@@ -43,6 +44,7 @@ describe("dbToTask", () => {
       urgent: true,
       important: false,
       gtdStatus: "next",
+      order: 5,
     });
   });
 
@@ -70,6 +72,7 @@ describe("dbToTask", () => {
     expect(task.urgent).toBe(false);
     expect(task.important).toBe(false);
     expect(task.gtdStatus).toBe("inbox");
+    expect(task.order).toBe(0);
   });
 });
 
@@ -94,6 +97,7 @@ describe("taskToDb", () => {
       urgent: false,
       important: true,
       gtdStatus: "waiting",
+      order: 7,
     };
     expect(taskToDb(task, "user-42")).toEqual({
       id: "t1",
@@ -115,11 +119,12 @@ describe("taskToDb", () => {
       urgent: false,
       important: true,
       gtd_status: "waiting",
+      sort_order: 7,
     });
   });
 
   it("дефолтит pomodoros в 0 если поле отсутствует", () => {
-    const task = { id: "t", title: "", desc: "", dueDate: "", reminder: 30, projectId: "p", difficulty: "easy", estH: 0, estM: 0, tags: [], completed: false, notified: false, parentId: null, recurrence: null, urgent: false, important: false, gtdStatus: "inbox" } as Task;
+    const task = { id: "t", title: "", desc: "", dueDate: "", reminder: 30, projectId: "p", difficulty: "easy", estH: 0, estM: 0, tags: [], completed: false, notified: false, parentId: null, recurrence: null, urgent: false, important: false, gtdStatus: "inbox", order: 0 } as Task;
     expect(taskToDb(task, "u").pomodoros).toBe(0);
   });
 });
