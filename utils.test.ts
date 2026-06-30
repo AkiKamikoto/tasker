@@ -30,6 +30,7 @@ const baseTask: Task = {
   urgent: false,
   important: false,
   gtdStatus: "inbox",
+  order: 0,
 };
 
 describe("getStatus", () => {

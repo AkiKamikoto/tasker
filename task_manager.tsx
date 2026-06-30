@@ -10,7 +10,7 @@ import {
   GroupBy,
   GtdStatus,
 } from "./types";
-import { getTimeBucket, buildTaskTree, groupTasks, getDescendantIds, nodeMatchesPredicate, nextDueDate } from "./utils";
+import { getTimeBucket, buildTaskTree, groupTasks, getDescendantIds, nodeMatchesPredicate, nextDueDate, sortTaskTree, compareByOrder } from "./utils";
 import { supabase } from "./lib/supabase";
 import { dbToTask, dbToProject, taskToDb, projectToDb } from "./lib/mappers";
 import { POMODORO, NOTIFICATION_CHECK_INTERVAL_MS, BEEP } from "./config";
@@ -359,6 +359,7 @@ export default function App() {
       urgent: taskData.urgent,
       important: taskData.important,
       gtdStatus: taskData.gtdStatus,
+      order: Date.now(),
     };
     setTasks((prev) => [...prev, newTask]);
     setShowTask(false);
@@ -516,6 +517,82 @@ export default function App() {
         .in("id", ids)
         .eq("user_id", session.user.id);
       if (error) {
+        setTasks(prevTasks);
+        showToast("Не удалось переместить задачу.");
+      }
+    }
+  };
+
+  // Перетаскивание: изменить порядок среди соседей или вложить как подзадачу.
+  const handleMoveNode = async (
+    draggedId: string,
+    targetId: string,
+    position: "before" | "after" | "child"
+  ) => {
+    if (draggedId === targetId) return;
+    const dragged = tasks.find((t) => t.id === draggedId);
+    const target = tasks.find((t) => t.id === targetId);
+    if (!dragged || !target) return;
+    // Нельзя бросить задачу внутрь самой себя или своего потомка.
+    if (getDescendantIds(tasks, draggedId).includes(targetId)) return;
+
+    const newParentId = position === "child" ? targetId : target.parentId;
+    let newProjectId = dragged.projectId;
+    if (position === "child") newProjectId = target.projectId;
+    else if (newParentId)
+      newProjectId = tasks.find((t) => t.id === newParentId)?.projectId ?? dragged.projectId;
+
+    // Новый порядок среди будущих соседей.
+    const siblings = tasks
+      .filter((t) => t.parentId === newParentId && t.id !== draggedId)
+      .sort(compareByOrder);
+    let insertIdx: number;
+    if (position === "child") insertIdx = siblings.length;
+    else {
+      const ti = siblings.findIndex((s) => s.id === targetId);
+      insertIdx = position === "before" ? ti : ti + 1;
+    }
+    const newSibIds = siblings.map((s) => s.id);
+    newSibIds.splice(insertIdx < 0 ? newSibIds.length : insertIdx, 0, draggedId);
+    const orderMap = new Map<string, number>();
+    newSibIds.forEach((id, i) => orderMap.set(id, i));
+
+    const projectChanged = newProjectId !== dragged.projectId;
+    const descIds = projectChanged ? getDescendantIds(tasks, draggedId) : [];
+    const prevTasks = tasks;
+    setTasks((prev) =>
+      prev.map((t) => {
+        let nt = t;
+        if (orderMap.has(t.id)) nt = { ...nt, order: orderMap.get(t.id)! };
+        if (t.id === draggedId) nt = { ...nt, parentId: newParentId, projectId: newProjectId };
+        else if (descIds.includes(t.id)) nt = { ...nt, projectId: newProjectId };
+        return nt;
+      })
+    );
+
+    if (session) {
+      const uid = session.user.id;
+      const ops: any[] = [];
+      ops.push(
+        supabase
+          .from("tasks")
+          .update({ parent_id: newParentId, project_id: newProjectId, sort_order: orderMap.get(draggedId) })
+          .eq("id", draggedId)
+          .eq("user_id", uid)
+      );
+      newSibIds
+        .filter((id) => id !== draggedId)
+        .forEach((id) =>
+          ops.push(
+            supabase.from("tasks").update({ sort_order: orderMap.get(id) }).eq("id", id).eq("user_id", uid)
+          )
+        );
+      if (descIds.length)
+        ops.push(
+          supabase.from("tasks").update({ project_id: newProjectId }).in("id", descIds).eq("user_id", uid)
+        );
+      const results = await Promise.all(ops);
+      if (results.some((r) => r && r.error)) {
         setTasks(prevTasks);
         showToast("Не удалось переместить задачу.");
       }
@@ -722,12 +799,7 @@ export default function App() {
     const filtered = noFilter
       ? tree
       : tree.filter((n) => nodeMatchesPredicate(n, matchesTask));
-    return [...filtered].sort((a, b) => {
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    });
+    return sortTaskTree([...filtered]);
   }, [viewTasks, filter, prioUrgent, prioImportant, matchesTask]);
 
   const groups = useMemo(
@@ -919,6 +991,7 @@ export default function App() {
                       onStartPomodoro={handleStartPomoForTask}
                       onAddSubtask={(n) => setAddingSubtaskParent(n)}
                       onMove={handleMoveTask}
+                      onMoveNode={handleMoveNode}
                     />
                   ))}
                 </div>
@@ -1084,6 +1157,7 @@ export default function App() {
                               onStartPomodoro={handleStartPomoForTask}
                               onAddSubtask={(n) => setAddingSubtaskParent(n)}
                               onMove={handleMoveTask}
+                              onMoveNode={handleMoveNode}
                             />
                           ))}
                         </div>

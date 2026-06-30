@@ -14,6 +14,7 @@ interface TaskItemProps {
   onStartPomodoro: (node: TaskNode) => void;
   onAddSubtask: (node: TaskNode) => void;
   onMove: (id: string, projectId: string) => void;
+  onMoveNode: (draggedId: string, targetId: string, position: "before" | "after" | "child") => void;
 }
 
 export default function TaskItem({
@@ -28,10 +29,21 @@ export default function TaskItem({
   onStartPomodoro,
   onAddSubtask,
   onMove,
+  onMoveNode,
 }: TaskItemProps) {
   const task = node;
   const [expanded, setExpanded] = useState(true);
   const [showMove, setShowMove] = useState(false);
+  const [dropPos, setDropPos] = useState<"before" | "after" | "child" | null>(null);
+
+  // Позиция сброса по вертикали курсора: верх → перед, низ → после, центр → внутрь (подзадача).
+  const computeDropPos = (e: React.DragEvent): "before" | "after" | "child" => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - r.top;
+    if (y < r.height * 0.3) return "before";
+    if (y > r.height * 0.7) return "after";
+    return "child";
+  };
 
   const cfg = TIME_CONFIG[getTimeBucket(task)];
   const diff = DIFFICULTY[task.difficulty] || DIFFICULTY.medium;
@@ -74,17 +86,41 @@ export default function TaskItem({
     <div>
       <div
         className="tm-card"
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/plain", task.id);
+          e.dataTransfer.effectAllowed = "move";
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setDropPos(computeDropPos(e));
+        }}
+        onDragLeave={() => setDropPos(null)}
+        onDrop={(e) => {
+          e.preventDefault();
+          const id = e.dataTransfer.getData("text/plain");
+          const pos = computeDropPos(e);
+          setDropPos(null);
+          if (id && id !== task.id) onMoveNode(id, task.id, pos);
+        }}
         style={{
           position: "relative",
           background: "var(--surface)",
           borderRadius: 12,
           padding: "var(--card-pad)",
           marginLeft: depth * 22,
-          boxShadow: isFocusing
-            ? "0 0 0 2px #ef4444, 0 4px 12px rgba(239, 68, 68, 0.15)"
-            : "var(--shadow-sm)",
+          boxShadow:
+            dropPos === "child"
+              ? "0 0 0 2px var(--accent)"
+              : isFocusing
+              ? "0 0 0 2px #ef4444, 0 4px 12px rgba(239, 68, 68, 0.15)"
+              : "var(--shadow-sm)",
+          borderTop: dropPos === "before" ? "2px solid var(--accent)" : "2px solid transparent",
+          borderBottom: dropPos === "after" ? "2px solid var(--accent)" : "2px solid transparent",
           borderLeft: `4px solid ${cfg.color}`,
           opacity: task.completed ? 0.7 : 1,
+          cursor: "grab",
         }}
       >
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
@@ -313,6 +349,7 @@ export default function TaskItem({
               onStartPomodoro={onStartPomodoro}
               onAddSubtask={onAddSubtask}
               onMove={onMove}
+              onMoveNode={onMoveNode}
             />
           ))}
         </div>
