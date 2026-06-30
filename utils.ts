@@ -1,6 +1,7 @@
 import {
   Task,
   StatusKey,
+  TimeBucket,
   RecurrenceRule,
   GroupBy,
   Project,
@@ -14,6 +15,20 @@ export function getStatus(task: Task): StatusKey {
   const diff = (new Date(task.dueDate).getTime() - new Date().getTime()) / 60000;
   if (diff < 0) return "overdue";
   if (diff <= 60) return "urgent";
+  return "upcoming";
+}
+
+// Временная корзина задачи (ось «когда»): просрочено / сегодня / предстоит / выполнено.
+// Без даты — «предстоит».
+export function getTimeBucket(task: Task): TimeBucket {
+  if (task.completed) return "completed";
+  if (!task.dueDate) return "upcoming";
+  const due = new Date(task.dueDate);
+  if (isNaN(due.getTime())) return "upcoming";
+  const now = new Date();
+  if (due.getTime() < now.getTime()) return "overdue";
+  const startTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  if (due.getTime() < startTomorrow.getTime()) return "today";
   return "upcoming";
 }
 
@@ -97,11 +112,13 @@ export function getDescendantIds(tasks: Task[], rootId: string): string[] {
   return result;
 }
 
-// Узел подходит под фильтр, если сам соответствует статусу ИЛИ любой потомок.
-export function nodeMatchesFilter(node: TaskNode, filter: string): boolean {
-  if (filter === "all") return true;
-  if (getStatus(node) === filter) return true;
-  return node.children.some((c) => nodeMatchesFilter(c, filter));
+// Узел подходит, если сам удовлетворяет предикату ИЛИ любой его потомок.
+export function nodeMatchesPredicate(
+  node: TaskNode,
+  predicate: (t: Task) => boolean
+): boolean {
+  if (predicate(node)) return true;
+  return node.children.some((c) => nodeMatchesPredicate(c, predicate));
 }
 
 // ─── Контексты GTD (теги, начинающиеся с @) ──────────────────────────────────
