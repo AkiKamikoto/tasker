@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   getStatus,
   getTimeBucket,
+  quickDate,
   fmt,
   fmtTime,
   nextDueDate,
@@ -90,6 +91,25 @@ describe("getTimeBucket", () => {
   });
   it("'upcoming' если дедлайн в будущие дни", () => {
     expect(getTimeBucket({ ...baseTask, dueDate: "2026-06-26T09:00:00" })).toBe("upcoming");
+  });
+});
+
+describe("quickDate", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-25T12:00:00")); // четверг
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("today / tomorrow / +week", () => {
+    expect(quickDate("today")).toBe("2026-06-25");
+    expect(quickDate("tomorrow")).toBe("2026-06-26");
+    expect(quickDate("week")).toBe("2026-07-02");
+  });
+  it("weekend — ближайшая суббота", () => {
+    expect(quickDate("weekend")).toBe("2026-06-27");
   });
 });
 

@@ -139,12 +139,23 @@ export default function TaskItem({
                 badge(
                   GTD_CONFIG[task.gtdStatus].bg,
                   GTD_CONFIG[task.gtdStatus].color,
-                  `${GTD_CONFIG[task.gtdStatus].icon} ${GTD_CONFIG[task.gtdStatus].label}`
+                  GTD_CONFIG[task.gtdStatus].icon,
+                  GTD_CONFIG[task.gtdStatus].label
                 )}
               {task.pomodoros && task.pomodoros > 0
                 ? badge("#fef2f2", "#ef4444", `🍅 ${task.pomodoros}`, `Помидоров: ${task.pomodoros}`)
                 : null}
-              {badge(diff.bg, diff.color, diff.label)}
+              {/* Сложность — компактная цветная точка вместо подписи */}
+              <span
+                title={`Сложность: ${diff.label}`}
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: diff.color,
+                  flexShrink: 0,
+                }}
+              />
               {hasChildren &&
                 badge("var(--surface-2)", "var(--text-muted)", `✓ ${doneCount}/${children.length}`, "Прогресс подзадач")}
               {isAllView && taskProj && (
@@ -207,7 +218,7 @@ export default function TaskItem({
               {(task.estH > 0 || task.estM > 0) && <span>🕐 {fmtTime(task.estH, task.estM)}</span>}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <div className="tm-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <button onClick={() => onAddSubtask(node)} style={iconBtn("var(--text-faint)")} title="Добавить подзадачу">
               ＋
             </button>

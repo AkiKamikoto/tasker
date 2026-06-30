@@ -11,7 +11,7 @@ import {
   RecurrenceRule,
   GtdStatus,
 } from "../types";
-import { inp } from "../utils";
+import { inp, quickDate, QuickDateKind } from "../utils";
 import { useModal } from "../lib/useModal";
 import { TaskTemplate, applyTemplate } from "../templates";
 
@@ -101,6 +101,16 @@ export default function TaskModal({
     return base;
   });
   const [error, setError] = useState<string>("");
+  // Раскрытие расширенных полей. При редактировании задачи с «непустыми» доп-полями
+  // сразу показываем их, чтобы не прятать заполненное.
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(
+    !!taskToEdit &&
+      (form.recurrenceFreq !== "none" ||
+        form.gtdStatus !== "inbox" ||
+        form.tags.length > 0 ||
+        form.estH > 0 ||
+        form.difficulty !== "medium")
+  );
   const { firstFieldRef, backdropProps } = useModal<HTMLInputElement>(onClose);
 
   const addTaskTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -278,32 +288,6 @@ export default function TaskModal({
             onChange={(e) => setForm((p) => ({ ...p, desc: e.target.value }))}
           />
 
-          {/* Шаблоны — предзаполняют поля формы */}
-          {templates.length > 0 && (
-            <div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Шаблоны</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {templates.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    onClick={() => applyTpl(tpl)}
-                    style={{
-                      padding: "5px 10px",
-                      border: "1px solid var(--border)",
-                      borderRadius: 99,
-                      background: "var(--surface-2)",
-                      cursor: "pointer",
-                      fontSize: 12.5,
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    {tpl.icon || "📄"} {tpl.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Проект (перемещение между проектами/пространствами) */}
           {!parentTask && (
             <div>
@@ -331,22 +315,56 @@ export default function TaskModal({
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 10 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 5 }}>
-                Дата дедлайна (необязательно)
-              </div>
+          {/* Дата + быстрые чипы */}
+          <div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+              {([
+                ["today", "Сегодня"],
+                ["tomorrow", "Завтра"],
+                ["weekend", "Выходные"],
+                ["week", "+неделя"],
+              ] as [QuickDateKind, string][]).map(([k, label]) => (
+                <button
+                  key={k}
+                  onClick={() => setForm((p) => ({ ...p, date: quickDate(k) }))}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 99,
+                    border: "1px solid var(--border)",
+                    background: form.date === quickDate(k) ? "color-mix(in srgb, var(--accent) 14%, transparent)" : "var(--surface)",
+                    color: form.date === quickDate(k) ? "var(--accent)" : "var(--text-muted)",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+              {form.date && (
+                <button
+                  onClick={() => setForm((p) => ({ ...p, date: "", time: "" }))}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 99,
+                    border: "1px solid var(--border)",
+                    background: "var(--surface)",
+                    color: "var(--text-faint)",
+                    cursor: "pointer",
+                    fontSize: 12,
+                  }}
+                >
+                  Очистить
+                </button>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
               <input
                 {...inp()}
                 type="date"
                 value={form.date}
                 onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
               />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 5 }}>
-                Время (необязательно)
-              </div>
               <input
                 {...inp()}
                 type="time"
@@ -355,6 +373,66 @@ export default function TaskModal({
               />
             </div>
           </div>
+
+          {/* Приоритет (матрица Эйзенхауэра) — частое, оставляем на виду */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setForm((p) => ({ ...p, urgent: !p.urgent }))}
+              style={flagBtn(form.urgent, "#ef4444")}
+            >
+              🔥 Срочная
+            </button>
+            <button
+              onClick={() => setForm((p) => ({ ...p, important: !p.important }))}
+              style={flagBtn(form.important, "#3b82f6")}
+            >
+              ⭐ Важная
+            </button>
+          </div>
+
+          {/* Переключатель расширенных полей */}
+          <button
+            onClick={() => setShowAdvanced((v) => !v)}
+            style={{
+              alignSelf: "flex-start",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 13,
+              color: "var(--text-muted)",
+              padding: 0,
+            }}
+          >
+            {showAdvanced ? "Скрыть подробности ▴" : "Подробнее ▾"}
+          </button>
+
+          {showAdvanced && (
+          <>
+          {/* Шаблоны — предзаполняют поля формы */}
+          {templates.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Шаблоны</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {templates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    onClick={() => applyTpl(tpl)}
+                    style={{
+                      padding: "5px 10px",
+                      border: "1px solid var(--border)",
+                      borderRadius: 99,
+                      background: "var(--surface-2)",
+                      cursor: "pointer",
+                      fontSize: 12.5,
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {tpl.icon || "📄"} {tpl.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Повтор */}
           <div>
@@ -391,27 +469,6 @@ export default function TaskModal({
                   />
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* Матрица Эйзенхауэра */}
-          <div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
-              Приоритет (матрица Эйзенхауэра)
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setForm((p) => ({ ...p, urgent: !p.urgent }))}
-                style={flagBtn(form.urgent, "#ef4444")}
-              >
-                🔥 Срочная
-              </button>
-              <button
-                onClick={() => setForm((p) => ({ ...p, important: !p.important }))}
-                style={flagBtn(form.important, "#3b82f6")}
-              >
-                ⭐ Важная
-              </button>
             </div>
           </div>
 
@@ -582,6 +639,8 @@ export default function TaskModal({
               ))}
             </select>
           </div>
+          </>
+          )}
         </div>
 
         {error && (

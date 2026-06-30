@@ -1,5 +1,6 @@
 
 import { Project, Task } from "../types";
+import { getTimeBucket } from "../utils";
 
 interface SidebarProps {
   projects: Project[];
@@ -47,6 +48,11 @@ export default function Sidebar({
   const inboxBadgeCount = tasks.filter(
     (t) => !t.completed && t.gtdStatus === "inbox" && activeProjectIds.includes(t.projectId)
   ).length;
+  const todayBadgeCount = tasks.filter((t) => {
+    if (t.completed || !activeProjectIds.includes(t.projectId)) return false;
+    const b = getTimeBucket(t);
+    return b === "overdue" || b === "today";
+  }).length;
 
   return (
     <div
@@ -118,6 +124,7 @@ export default function Sidebar({
 
       {/* Special views */}
       {[
+        { id: "__today__", icon: "⭐", label: "Сегодня", badge: todayBadgeCount },
         { id: "__inbox__", icon: "📥", label: "Входящие", badge: inboxBadgeCount },
         { id: "__all__", icon: "🗂", label: "Все задачи", badge: allBadgeCount },
         { id: "__review__", icon: "🔄", label: "Обзор", badge: null },
