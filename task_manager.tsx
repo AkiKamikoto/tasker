@@ -5,12 +5,12 @@ import {
   Task,
   DEFAULT_WORK_PROJECT,
   DEFAULT_PERSONAL_PROJECT,
-  STATUS_CONFIG,
+  TIME_CONFIG,
   ViewMode,
   GroupBy,
   GtdStatus,
 } from "./types";
-import { getStatus, buildTaskTree, groupTasks, getDescendantIds, nodeMatchesFilter, nextDueDate } from "./utils";
+import { getTimeBucket, buildTaskTree, groupTasks, getDescendantIds, nodeMatchesPredicate, nextDueDate } from "./utils";
 import { supabase } from "./lib/supabase";
 import { dbToTask, dbToProject, taskToDb, projectToDb } from "./lib/mappers";
 import { POMODORO, NOTIFICATION_CHECK_INTERVAL_MS, BEEP } from "./config";
@@ -63,6 +63,9 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const [inboxTitle, setInboxTitle] = useState<string>("");
+  // Фильтр-приоритет (ручные флаги Эйзенхауэра) — комбинируется с временной вкладкой.
+  const [prioUrgent, setPrioUrgent] = useState<boolean>(false);
+  const [prioImportant, setPrioImportant] = useState<boolean>(false);
   const [templateForNew, setTemplateForNew] = useState<TaskTemplate | null>(null);
   const [userTemplates, setUserTemplates] = useState<TaskTemplate[]>([]);
   const quickAddRef = useRef<HTMLInputElement>(null);
@@ -683,25 +686,39 @@ export default function App() {
     return scopeTasks.filter((t) => t.projectId === selProj);
   }, [scopeTasks, selProj, isAllView, isStats, isInbox, isReview]);
 
+  // Счётчики по временным корзинам + по приоритетным флагам.
   const counts = useMemo(() => ({
     all: viewTasks.length,
-    upcoming: viewTasks.filter((t) => getStatus(t) === "upcoming").length,
-    urgent: viewTasks.filter((t) => getStatus(t) === "urgent").length,
-    overdue: viewTasks.filter((t) => getStatus(t) === "overdue").length,
-    completed: viewTasks.filter((t) => getStatus(t) === "completed").length,
+    overdue: viewTasks.filter((t) => getTimeBucket(t) === "overdue").length,
+    today: viewTasks.filter((t) => getTimeBucket(t) === "today").length,
+    upcoming: viewTasks.filter((t) => getTimeBucket(t) === "upcoming").length,
+    completed: viewTasks.filter((t) => getTimeBucket(t) === "completed").length,
+    urgent: viewTasks.filter((t) => t.urgent && !t.completed).length,
+    important: viewTasks.filter((t) => t.important && !t.completed).length,
   }), [viewTasks]);
 
-  // Дерево задач верхнего уровня с учётом статус-фильтра, отсортированное по дедлайну.
+  // Предикат: время (вкладка) И приоритет (чипы) — комбинируются.
+  const matchesTask = useMemo(() => {
+    return (t: Task) =>
+      (filter === "all" || getTimeBucket(t) === filter) &&
+      (!prioUrgent || t.urgent) &&
+      (!prioImportant || t.important);
+  }, [filter, prioUrgent, prioImportant]);
+
+  // Дерево задач верхнего уровня с учётом фильтров, отсортированное по дедлайну.
   const rootNodes = useMemo(() => {
     const tree = buildTaskTree(viewTasks);
-    const filtered = filter === "all" ? tree : tree.filter((n) => nodeMatchesFilter(n, filter));
+    const noFilter = filter === "all" && !prioUrgent && !prioImportant;
+    const filtered = noFilter
+      ? tree
+      : tree.filter((n) => nodeMatchesPredicate(n, matchesTask));
     return [...filtered].sort((a, b) => {
       if (!a.dueDate && !b.dueDate) return 0;
       if (!a.dueDate) return 1;
       if (!b.dueDate) return -1;
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
-  }, [viewTasks, filter]);
+  }, [viewTasks, filter, prioUrgent, prioImportant, matchesTask]);
 
   const groups = useMemo(
     () => groupTasks(rootNodes, groupBy, projects),
@@ -913,17 +930,17 @@ export default function App() {
               >
                 {[
                   ["all", "Все"],
-                  ["upcoming", "Предстоящие"],
-                  ["urgent", "Срочные"],
                   ["overdue", "Просроченные"],
+                  ["today", "Сегодня"],
+                  ["upcoming", "Предстоящие"],
                   ["completed", "Выполненные"],
                 ].map(([key, label]) => {
                   const isActive = filter === key;
                   const countVal = counts[key as keyof typeof counts];
                   const activeColor =
                     key === "all"
-                      ? proj?.color || "#6366f1"
-                      : STATUS_CONFIG[key as keyof typeof STATUS_CONFIG]?.color || "#6366f1";
+                      ? proj?.color || "var(--accent)"
+                      : TIME_CONFIG[key as keyof typeof TIME_CONFIG]?.color || "var(--accent)";
                   return (
                     <button
                       key={key}
@@ -945,6 +962,46 @@ export default function App() {
                     </button>
                   );
                 })}
+              </div>
+            )}
+
+            {viewMode === "list" && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  padding: "10px 20px",
+                  background: "var(--surface)",
+                  borderBottom: "1px solid var(--border)",
+                  flexShrink: 0,
+                }}
+              >
+                <span style={{ fontSize: 12, color: "var(--text-faint)", alignSelf: "center" }}>
+                  Приоритет:
+                </span>
+                {[
+                  { key: "urgent", label: "🔥 Срочные", color: "#ef4444", active: prioUrgent, toggle: () => setPrioUrgent((v) => !v), count: counts.urgent },
+                  { key: "important", label: "⭐ Важные", color: "#3b82f6", active: prioImportant, toggle: () => setPrioImportant((v) => !v), count: counts.important },
+                ].map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={c.toggle}
+                    style={{
+                      padding: "5px 12px",
+                      borderRadius: 99,
+                      border: `1px solid ${c.active ? c.color : "var(--border)"}`,
+                      background: c.active ? `${c.color}1a` : "transparent",
+                      color: c.active ? c.color : "var(--text-muted)",
+                      cursor: "pointer",
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {c.label}
+                    {c.count > 0 ? ` (${c.count})` : ""}
+                  </button>
+                ))}
               </div>
             )}
 

@@ -21,6 +21,16 @@ export interface StatusConfig {
   bg: string;
 }
 
+// Временные корзины задачи (для вкладок и цвета карточки) — ось «когда дедлайн».
+export type TimeBucket = "overdue" | "today" | "upcoming" | "completed";
+
+export const TIME_CONFIG: Record<TimeBucket, StatusConfig> = {
+  overdue: { label: "Просрочено", color: "#ef4444", bg: "#fef2f2" },
+  today: { label: "Сегодня", color: "#f59e0b", bg: "#fffbeb" },
+  upcoming: { label: "Предстоит", color: "#3b82f6", bg: "#eff6ff" },
+  completed: { label: "Выполнено", color: "#10b981", bg: "#f0fdf4" },
+};
+
 // ─── Повторение ────────────────────────────────────────────────────────────────
 export type RecurrenceFreq = "daily" | "weekly" | "monthly";
 

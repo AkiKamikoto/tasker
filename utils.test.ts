@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   getStatus,
+  getTimeBucket,
   fmt,
   fmtTime,
   nextDueDate,
@@ -63,6 +64,32 @@ describe("getStatus", () => {
     expect(
       getStatus({ ...baseTask, completed: true, dueDate: "2026-06-25T11:00:00" })
     ).toBe("completed");
+  });
+});
+
+describe("getTimeBucket", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-25T12:00:00"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("'completed' для выполненной", () => {
+    expect(getTimeBucket({ ...baseTask, completed: true, dueDate: "2026-06-25T11:00:00" })).toBe("completed");
+  });
+  it("'upcoming' без даты", () => {
+    expect(getTimeBucket({ ...baseTask, dueDate: "" })).toBe("upcoming");
+  });
+  it("'overdue' если дедлайн прошёл", () => {
+    expect(getTimeBucket({ ...baseTask, dueDate: "2026-06-25T11:00:00" })).toBe("overdue");
+  });
+  it("'today' если дедлайн сегодня и ещё не прошёл", () => {
+    expect(getTimeBucket({ ...baseTask, dueDate: "2026-06-25T18:00:00" })).toBe("today");
+  });
+  it("'upcoming' если дедлайн в будущие дни", () => {
+    expect(getTimeBucket({ ...baseTask, dueDate: "2026-06-26T09:00:00" })).toBe("upcoming");
   });
 });
 

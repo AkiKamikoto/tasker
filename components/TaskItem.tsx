@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Project, STATUS_CONFIG, DIFFICULTY, GTD_CONFIG } from "../types";
-import { TaskNode, getStatus, fmt, fmtTime } from "../utils";
+import { Project, TIME_CONFIG, DIFFICULTY, GTD_CONFIG } from "../types";
+import { TaskNode, getTimeBucket, fmt, fmtTime } from "../utils";
 
 interface TaskItemProps {
   node: TaskNode;
@@ -33,8 +33,7 @@ export default function TaskItem({
   const [expanded, setExpanded] = useState(true);
   const [showMove, setShowMove] = useState(false);
 
-  const st = getStatus(task);
-  const cfg = STATUS_CONFIG[st];
+  const cfg = TIME_CONFIG[getTimeBucket(task)];
   const diff = DIFFICULTY[task.difficulty] || DIFFICULTY.medium;
   const taskProj = projects.find((p) => p.id === task.projectId);
   const isFocusing = pomoTaskId === task.id;
