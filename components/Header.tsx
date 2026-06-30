@@ -30,6 +30,7 @@ interface HeaderProps {
   setShowTask: (show: boolean) => void;
   setSidebarOpen: (f: (prev: boolean) => boolean) => void;
   showViewControls: boolean;
+  isMobile: boolean;
   viewMode: ViewMode;
   setViewMode: (m: ViewMode) => void;
   groupBy: GroupBy;
@@ -56,6 +57,7 @@ export default function Header({
   setShowTask,
   setSidebarOpen,
   showViewControls,
+  isMobile,
   viewMode,
   setViewMode,
   groupBy,
@@ -150,7 +152,7 @@ export default function Header({
               );
             })}
           </div>
-          {viewMode === "list" && (
+          {viewMode === "list" && !isMobile && (
             <select
               value={groupBy}
               onChange={(e) => setGroupBy(e.target.value as GroupBy)}

@@ -93,6 +93,14 @@ body {
 .tm-toast { animation: tmSlideUp 0.2s ease; }
 .tm-fade { animation: tmFade 0.2s ease; }
 
+/* Действия на карточке: видны при наведении/фокусе (десктоп), всегда — на мобильном/тач */
+.tm-actions { opacity: 0; transition: opacity 0.15s ease; }
+.tm-card:hover .tm-actions,
+.tm-card:focus-within .tm-actions { opacity: 1; }
+@media (max-width: 768px), (hover: none) {
+  .tm-actions { opacity: 1; }
+}
+
 /* Мягкие переходы для интерактивных элементов */
 button {
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease,

@@ -61,6 +61,25 @@ export function toDateTimeInput(d: Date): string {
   )}:${pad(d.getMinutes())}`;
 }
 
+// Дата в формате input[type=date] "YYYY-MM-DD".
+export function dateInput(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Быстрые даты для чипов в форме задачи.
+export type QuickDateKind = "today" | "tomorrow" | "weekend" | "week";
+export function quickDate(kind: QuickDateKind): string {
+  const d = new Date();
+  if (kind === "tomorrow") d.setDate(d.getDate() + 1);
+  else if (kind === "week") d.setDate(d.getDate() + 7);
+  else if (kind === "weekend") {
+    // Ближайшая суббота (если сегодня суббота — сегодня).
+    const daysUntilSat = (6 - d.getDay() + 7) % 7;
+    d.setDate(d.getDate() + daysUntilSat);
+  }
+  return dateInput(d);
+}
+
 // ─── Повтор: дата следующего экземпляра ───────────────────────────────────────
 export function nextDueDate(dueDate: string, rule: RecurrenceRule): string {
   if (!dueDate) return dueDate;

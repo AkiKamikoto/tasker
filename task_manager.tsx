@@ -51,7 +51,7 @@ export default function App() {
     DEFAULT_PERSONAL_PROJECT,
   ]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [selProj, setSelProj] = useState<string>("default-work");
+  const [selProj, setSelProj] = useState<string>("__today__");
   const [showTask, setShowTask] = useState<boolean>(false);
   const [showProj, setShowProj] = useState<boolean>(false);
   const [notifPerm, setNotifPerm] = useState<string>("default");
@@ -655,10 +655,13 @@ export default function App() {
   const isAllView = selProj === "__all__";
   const isInbox = selProj === "__inbox__";
   const isReview = selProj === "__review__";
+  const isToday = selProj === "__today__";
   // Контролы вида (список/календарь/матрица + группировка) — только для обычных списков задач.
-  const showViewControls = !isStats && !isInbox && !isReview;
+  const showViewControls = !isStats && !isInbox && !isReview && !isToday;
+  // «Сегодня» — всегда список (это сфокусированное временное представление).
+  const effectiveViewMode = isToday ? "list" : viewMode;
 
-  const defaultProjectId = isStats || isAllView || isInbox || isReview
+  const defaultProjectId = isStats || isAllView || isInbox || isReview || isToday
     ? scope === "work" ? "default-work" : "default-personal"
     : selProj;
 
@@ -674,17 +677,24 @@ export default function App() {
 
   const proj = useMemo(() => {
     if (isStats) return { id: "__stats__", name: "Статистика", color: scope === "work" ? "#3b82f6" : "#ec4899" };
+    if (isToday) return { id: "__today__", name: "Сегодня", color: "#f59e0b" };
     if (isAllView) return { id: "__all__", name: "Все задачи", color: "#64748b" };
     if (isInbox) return { id: "__inbox__", name: "Входящие", color: "#6366f1" };
     if (isReview) return { id: "__review__", name: "Еженедельный обзор", color: "#0ea5e9" };
     return projects.find((p) => p.id === selProj);
-  }, [projects, selProj, isStats, isAllView, isInbox, isReview, scope]);
+  }, [projects, selProj, isStats, isToday, isAllView, isInbox, isReview, scope]);
 
   const viewTasks = useMemo(() => {
     if (isAllView || isStats || isReview) return scopeTasks;
     if (isInbox) return scopeTasks.filter((t) => t.gtdStatus === "inbox");
+    // «Сегодня»: просрочено + сегодня (актуальное на сейчас).
+    if (isToday)
+      return scopeTasks.filter((t) => {
+        const b = getTimeBucket(t);
+        return b === "overdue" || b === "today";
+      });
     return scopeTasks.filter((t) => t.projectId === selProj);
-  }, [scopeTasks, selProj, isAllView, isStats, isInbox, isReview]);
+  }, [scopeTasks, selProj, isAllView, isStats, isInbox, isReview, isToday]);
 
   // Счётчики по временным корзинам + по приоритетным флагам.
   const counts = useMemo(() => ({
@@ -821,6 +831,7 @@ export default function App() {
           setShowTask={setShowTask}
           setSidebarOpen={setSidebarOpen}
           showViewControls={showViewControls}
+          isMobile={isMobile}
           viewMode={viewMode}
           setViewMode={setViewMode}
           groupBy={groupBy}
@@ -916,98 +927,89 @@ export default function App() {
           </div>
         ) : (
           <>
-            {viewMode === "list" && (
+            {effectiveViewMode === "list" && (
               <div
                 style={{
                   display: "flex",
-                  gap: 4,
-                  padding: "12px 20px 0",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "10px 20px",
                   background: "var(--surface)",
                   borderBottom: "1px solid var(--border)",
                   overflowX: "auto",
                   flexShrink: 0,
                 }}
               >
-                {[
-                  ["all", "Все"],
-                  ["overdue", "Просроченные"],
-                  ["today", "Сегодня"],
-                  ["upcoming", "Предстоящие"],
-                  ["completed", "Выполненные"],
-                ].map(([key, label]) => {
-                  const isActive = filter === key;
-                  const countVal = counts[key as keyof typeof counts];
-                  const activeColor =
-                    key === "all"
-                      ? proj?.color || "var(--accent)"
-                      : TIME_CONFIG[key as keyof typeof TIME_CONFIG]?.color || "var(--accent)";
-                  return (
+                {!isToday && (
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {[
+                      ["all", "Все"],
+                      ["overdue", "Просроченные"],
+                      ["today", "Сегодня"],
+                      ["upcoming", "Предстоящие"],
+                      ["completed", "Выполненные"],
+                    ].map(([key, label]) => {
+                      const isActive = filter === key;
+                      const countVal = counts[key as keyof typeof counts];
+                      const activeColor =
+                        key === "all"
+                          ? proj?.color || "var(--accent)"
+                          : TIME_CONFIG[key as keyof typeof TIME_CONFIG]?.color || "var(--accent)";
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setFilter(key)}
+                          style={{
+                            padding: "5px 12px",
+                            border: "none",
+                            borderRadius: 99,
+                            cursor: "pointer",
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                            background: isActive ? activeColor : "transparent",
+                            color: isActive ? "white" : "var(--text-muted)",
+                          }}
+                        >
+                          {label}
+                          {countVal > 0 ? ` (${countVal})` : ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, marginLeft: isToday ? 0 : "auto" }}>
+                  {[
+                    { key: "urgent", label: "🔥", title: "Срочные", color: "#ef4444", active: prioUrgent, toggle: () => setPrioUrgent((v) => !v), count: counts.urgent },
+                    { key: "important", label: "⭐", title: "Важные", color: "#3b82f6", active: prioImportant, toggle: () => setPrioImportant((v) => !v), count: counts.important },
+                  ].map((c) => (
                     <button
-                      key={key}
-                      onClick={() => setFilter(key)}
+                      key={c.key}
+                      onClick={c.toggle}
+                      title={c.title}
                       style={{
-                        padding: "7px 14px",
-                        border: "none",
-                        borderRadius: "8px 8px 0 0",
+                        padding: "5px 12px",
+                        borderRadius: 99,
+                        border: `1px solid ${c.active ? c.color : "var(--border)"}`,
+                        background: c.active ? `${c.color}1a` : "transparent",
+                        color: c.active ? c.color : "var(--text-muted)",
                         cursor: "pointer",
                         fontSize: 12.5,
                         fontWeight: 600,
                         whiteSpace: "nowrap",
-                        background: isActive ? activeColor : "transparent",
-                        color: isActive ? "white" : "var(--text-muted)",
                       }}
                     >
-                      {label}
-                      {countVal > 0 ? ` (${countVal})` : ""}
+                      {c.label}
+                      {c.count > 0 ? ` ${c.count}` : ""}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
             )}
 
-            {viewMode === "list" && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  padding: "10px 20px",
-                  background: "var(--surface)",
-                  borderBottom: "1px solid var(--border)",
-                  flexShrink: 0,
-                }}
-              >
-                <span style={{ fontSize: 12, color: "var(--text-faint)", alignSelf: "center" }}>
-                  Приоритет:
-                </span>
-                {[
-                  { key: "urgent", label: "🔥 Срочные", color: "#ef4444", active: prioUrgent, toggle: () => setPrioUrgent((v) => !v), count: counts.urgent },
-                  { key: "important", label: "⭐ Важные", color: "#3b82f6", active: prioImportant, toggle: () => setPrioImportant((v) => !v), count: counts.important },
-                ].map((c) => (
-                  <button
-                    key={c.key}
-                    onClick={c.toggle}
-                    style={{
-                      padding: "5px 12px",
-                      borderRadius: 99,
-                      border: `1px solid ${c.active ? c.color : "var(--border)"}`,
-                      background: c.active ? `${c.color}1a` : "transparent",
-                      color: c.active ? c.color : "var(--text-muted)",
-                      cursor: "pointer",
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {c.label}
-                    {c.count > 0 ? ` (${c.count})` : ""}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {viewMode === "calendar" ? (
+            {effectiveViewMode === "calendar" ? (
               <CalendarView tasks={viewTasks} projects={projects} onEdit={setEditingTask} />
-            ) : viewMode === "matrix" ? (
+            ) : effectiveViewMode === "matrix" ? (
               <MatrixView
                 tasks={viewTasks}
                 projects={projects}
