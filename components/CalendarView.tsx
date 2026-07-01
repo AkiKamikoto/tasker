@@ -25,11 +25,11 @@ export default function CalendarView({ tasks, projects, onEdit }: CalendarViewPr
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  // Карта "YYYY-MM-DD" → задачи с дедлайном в этот день.
+  // Карта "YYYY-MM-DD" → задачи с дедлайном в этот день (выполненные скрыты, как и в матрице).
   const byDay = useMemo(() => {
     const map = new Map<string, Task[]>();
     tasks.forEach((t) => {
-      if (!t.dueDate) return;
+      if (t.completed || !t.dueDate) return;
       const d = new Date(t.dueDate);
       if (isNaN(d.getTime())) return;
       const key = dayKey(d);
@@ -139,7 +139,6 @@ export default function CalendarView({ tasks, projects, onEdit }: CalendarViewPr
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      textDecoration: t.completed ? "line-through" : "none",
                     }}
                   >
                     {t.title}

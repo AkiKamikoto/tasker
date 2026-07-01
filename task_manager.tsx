@@ -10,7 +10,7 @@ import {
   GroupBy,
   GtdStatus,
 } from "./types";
-import { getTimeBucket, buildTaskTree, groupTasks, getDescendantIds, nodeMatchesPredicate, nextDueDate, sortTaskTree, compareByOrder } from "./utils";
+import { getTimeBucket, buildTaskTree, groupTasks, getDescendantIds, nodeMatchesPredicate, nextDueDate, sortTaskTree, compareByOrder, TaskNode } from "./utils";
 import { supabase } from "./lib/supabase";
 import { dbToTask, dbToProject, taskToDb, projectToDb } from "./lib/mappers";
 import { POMODORO, NOTIFICATION_CHECK_INTERVAL_MS, BEEP } from "./config";
@@ -34,7 +34,66 @@ import AuthModal from "./components/AuthModal";
 import Toast from "./components/Toast";
 import { TaskTemplate, BUILT_IN_TEMPLATES, loadUserTemplates, saveUserTemplate } from "./templates";
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Шторка «Выполненные» ───────────────────────────────────────────────────────
+// Прячет выполненные задачи верхнего уровня за сворачиваемой панелью (свёрнута по умолчанию).
+
+interface CompletedShutterProps {
+  nodes: TaskNode[];
+  expanded: boolean;
+  onToggle: () => void;
+  projects: Project[];
+  isAllView: boolean;
+  pomoTaskId: string | null;
+  onToggleCompleted: (id: string) => void;
+  onDelete: (id: string) => void;
+  onEdit: (node: TaskNode) => void;
+  onStartPomodoro: (node: TaskNode) => void;
+  onAddSubtask: (node: TaskNode) => void;
+  onMove: (id: string, projectId: string) => void;
+  onMoveNode: (draggedId: string, targetId: string, position: "before" | "after" | "child") => void;
+}
+
+function CompletedShutter({ nodes, expanded, onToggle, ...taskItemProps }: CompletedShutterProps) {
+  if (nodes.length === 0) return null;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <button
+        onClick={onToggle}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "none",
+          border: "none",
+          padding: "8px 2px",
+          cursor: "pointer",
+          fontSize: 13,
+          fontWeight: 600,
+          color: "var(--text-muted)",
+        }}
+      >
+        <span
+          style={{
+            display: "inline-block",
+            transform: expanded ? "rotate(90deg)" : "none",
+            transition: "transform 0.15s",
+            fontSize: 11,
+          }}
+        >
+          ▶
+        </span>
+        Выполненные ({nodes.length})
+      </button>
+      {expanded && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
+          {nodes.map((node) => (
+            <TaskItem key={node.id} node={node} depth={0} {...taskItemProps} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function App() {
   const { toasts, showToast, dismiss } = useToast();
@@ -69,6 +128,9 @@ export default function App() {
   const [templateForNew, setTemplateForNew] = useState<TaskTemplate | null>(null);
   const [userTemplates, setUserTemplates] = useState<TaskTemplate[]>([]);
   const quickAddRef = useRef<HTMLInputElement>(null);
+  // Шторка «Выполненные»: свёрнута по умолчанию, не показывается на вкладке «Выполненные» (там и так только они).
+  const [showCompletedList, setShowCompletedList] = useState<boolean>(false);
+  const [showCompletedInbox, setShowCompletedInbox] = useState<boolean>(false);
 
   // Pomodoro
   const [pomoTaskId, setPomoTaskId] = useState<string | null>(null);
@@ -802,9 +864,21 @@ export default function App() {
     return sortTaskTree([...filtered]);
   }, [viewTasks, filter, prioUrgent, prioImportant, matchesTask]);
 
+  // Корневые задачи верхнего уровня без выполненных — для списка/инбокса они уводятся под шторку.
+  // На вкладке «Выполненные» шторка не нужна — там и так показаны только выполненные.
+  const { activeRootNodes, completedRootNodes } = useMemo(() => {
+    if (!isInbox && filter === "completed") {
+      return { activeRootNodes: rootNodes, completedRootNodes: [] as typeof rootNodes };
+    }
+    return {
+      activeRootNodes: rootNodes.filter((n) => !n.completed),
+      completedRootNodes: rootNodes.filter((n) => n.completed),
+    };
+  }, [rootNodes, filter, isInbox]);
+
   const groups = useMemo(
-    () => groupTasks(rootNodes, groupBy, projects),
-    [rootNodes, groupBy, projects]
+    () => groupTasks(activeRootNodes, groupBy, projects),
+    [activeRootNodes, groupBy, projects]
   );
 
   const templates = useMemo(
@@ -969,32 +1043,49 @@ export default function App() {
                   Добавить
                 </button>
               </div>
-              {rootNodes.length === 0 ? (
+              {activeRootNodes.length === 0 && completedRootNodes.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "48px 0", color: "var(--text-faint)" }}>
                   <div style={{ fontSize: 52, marginBottom: 12 }}>📥</div>
                   <p style={{ fontSize: 15, margin: "0 0 6px", fontWeight: 500 }}>Входящие пусты</p>
                   <p style={{ fontSize: 13, margin: 0 }}>Запишите всё, что нужно сделать, и разберите позже.</p>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {rootNodes.map((node) => (
-                    <TaskItem
-                      key={node.id}
-                      node={node}
-                      projects={projects}
-                      isAllView={true}
-                      depth={0}
-                      pomoTaskId={pomoTaskId}
-                      onToggleCompleted={handleToggleTaskCompleted}
-                      onDelete={handleDeleteTask}
-                      onEdit={(n) => setEditingTask(n)}
-                      onStartPomodoro={handleStartPomoForTask}
-                      onAddSubtask={(n) => setAddingSubtaskParent(n)}
-                      onMove={handleMoveTask}
-                      onMoveNode={handleMoveNode}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {activeRootNodes.map((node) => (
+                      <TaskItem
+                        key={node.id}
+                        node={node}
+                        projects={projects}
+                        isAllView={true}
+                        depth={0}
+                        pomoTaskId={pomoTaskId}
+                        onToggleCompleted={handleToggleTaskCompleted}
+                        onDelete={handleDeleteTask}
+                        onEdit={(n) => setEditingTask(n)}
+                        onStartPomodoro={handleStartPomoForTask}
+                        onAddSubtask={(n) => setAddingSubtaskParent(n)}
+                        onMove={handleMoveTask}
+                        onMoveNode={handleMoveNode}
+                      />
+                    ))}
+                  </div>
+                  <CompletedShutter
+                    nodes={completedRootNodes}
+                    expanded={showCompletedInbox}
+                    onToggle={() => setShowCompletedInbox((v) => !v)}
+                    projects={projects}
+                    isAllView={true}
+                    pomoTaskId={pomoTaskId}
+                    onToggleCompleted={handleToggleTaskCompleted}
+                    onDelete={handleDeleteTask}
+                    onEdit={(n) => setEditingTask(n)}
+                    onStartPomodoro={handleStartPomoForTask}
+                    onAddSubtask={(n) => setAddingSubtaskParent(n)}
+                    onMove={handleMoveTask}
+                    onMoveNode={handleMoveNode}
+                  />
+                </>
               )}
             </div>
           </div>
@@ -1105,7 +1196,7 @@ export default function App() {
                   <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-faint)" }}>
                     <div style={{ fontSize: 14 }}>Загрузка задач...</div>
                   </div>
-                ) : rootNodes.length === 0 ? (
+                ) : activeRootNodes.length === 0 && completedRootNodes.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-faint)" }}>
                     <div style={{ fontSize: 52, marginBottom: 12 }}>📝</div>
                     <p style={{ fontSize: 15, margin: "0 0 6px", fontWeight: 500 }}>Нет задач</p>
@@ -1163,6 +1254,21 @@ export default function App() {
                         </div>
                       </div>
                     ))}
+                    <CompletedShutter
+                      nodes={completedRootNodes}
+                      expanded={showCompletedList}
+                      onToggle={() => setShowCompletedList((v) => !v)}
+                      projects={projects}
+                      isAllView={isAllView}
+                      pomoTaskId={pomoTaskId}
+                      onToggleCompleted={handleToggleTaskCompleted}
+                      onDelete={handleDeleteTask}
+                      onEdit={(n) => setEditingTask(n)}
+                      onStartPomodoro={handleStartPomoForTask}
+                      onAddSubtask={(n) => setAddingSubtaskParent(n)}
+                      onMove={handleMoveTask}
+                      onMoveNode={handleMoveNode}
+                    />
                   </div>
                 )}
               </div>
