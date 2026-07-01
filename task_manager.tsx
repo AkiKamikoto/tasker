@@ -682,6 +682,29 @@ export default function App() {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const newVal = !task.completed;
+
+    // Родитель: предлагаем завершить его, если это была последняя невыполненная
+    // подзадача, и автоматически переоткрываем, если он уже был выполнен, а
+    // подзадачу вернули в работу. Только один уровень вверх, без рекурсии.
+    let parentUpdate: { id: string; completed: boolean } | null = null;
+    if (task.parentId) {
+      const parent = tasks.find((t) => t.id === task.parentId);
+      if (parent) {
+        if (newVal && !parent.completed) {
+          const siblings = tasks.filter((t) => t.parentId === task.parentId);
+          const allDone = siblings.every((s) => (s.id === id ? true : s.completed));
+          if (allDone) {
+            const confirmed = window.confirm(
+              `Все подзадачи «${parent.title}» выполнены. Завершить и основную задачу?`
+            );
+            if (confirmed) parentUpdate = { id: parent.id, completed: true };
+          }
+        } else if (!newVal && parent.completed) {
+          parentUpdate = { id: parent.id, completed: false };
+        }
+      }
+    }
+
     // Повтор: при завершении повторяющейся задачи создаём следующий экземпляр.
     const spawned: Task | null =
       newVal && task.recurrence && task.dueDate
@@ -695,7 +718,12 @@ export default function App() {
           }
         : null;
     setTasks((prev) => {
-      const next = prev.map((t) => (t.id === id ? { ...t, completed: newVal } : t));
+      let next = prev.map((t) => (t.id === id ? { ...t, completed: newVal } : t));
+      if (parentUpdate) {
+        next = next.map((t) =>
+          t.id === parentUpdate!.id ? { ...t, completed: parentUpdate!.completed } : t
+        );
+      }
       return spawned ? [...next, spawned] : next;
     });
     if (session) {
@@ -705,14 +733,35 @@ export default function App() {
         .eq("id", id)
         .eq("user_id", session.user.id);
       if (error) {
-        // Откат переключения и созданного повтора
+        // Откат переключения задачи, родителя и созданного повтора
         setTasks((prev) =>
           prev
             .filter((t) => !spawned || t.id !== spawned.id)
-            .map((t) => (t.id === id ? { ...t, completed: !newVal } : t))
+            .map((t) => {
+              if (t.id === id) return { ...t, completed: !newVal };
+              if (parentUpdate && t.id === parentUpdate.id) return { ...t, completed: !parentUpdate.completed };
+              return t;
+            })
         );
         showToast("Не удалось обновить статус задачи.");
-      } else if (spawned) {
+        return;
+      }
+      if (parentUpdate) {
+        const { error: eParent } = await supabase
+          .from("tasks")
+          .update({ completed: parentUpdate.completed })
+          .eq("id", parentUpdate.id)
+          .eq("user_id", session.user.id);
+        if (eParent) {
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === parentUpdate!.id ? { ...t, completed: !parentUpdate!.completed } : t
+            )
+          );
+          showToast("Не удалось обновить статус основной задачи.");
+        }
+      }
+      if (spawned) {
         const { error: e2 } = await supabase
           .from("tasks")
           .insert(taskToDb(spawned, session.user.id));

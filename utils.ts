@@ -173,7 +173,7 @@ export interface TaskGroup {
   nodes: TaskNode[];
 }
 
-function dateBucket(dueDate: string): { key: string; label: string; order: number } {
+export function dateBucket(dueDate: string): { key: string; label: string; order: number } {
   if (!dueDate) return { key: "nodate", label: "Без даты", order: 5 };
   const now = new Date();
   const due = new Date(dueDate);
