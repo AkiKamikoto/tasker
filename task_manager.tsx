@@ -876,11 +876,22 @@ export default function App() {
     if (isAllView || isStats || isReview) return scopeTasks;
     if (isInbox) return scopeTasks.filter((t) => t.gtdStatus === "inbox");
     // «Сегодня»: просрочено + сегодня (актуальное на сейчас).
-    if (isToday)
-      return scopeTasks.filter((t) => {
-        const b = getTimeBucket(t);
-        return b === "overdue" || b === "today";
+    // Подзадачи такой задачи показываем вместе с ней, даже если у них другой
+    // (или отсутствующий) дедлайн — иначе чек-лист внутри задачи «на сегодня»
+    // окажется скрыт.
+    if (isToday) {
+      const dueTodayIds = scopeTasks
+        .filter((t) => {
+          const b = getTimeBucket(t);
+          return b === "overdue" || b === "today";
+        })
+        .map((t) => t.id);
+      const idsToShow = new Set(dueTodayIds);
+      dueTodayIds.forEach((id) => {
+        getDescendantIds(scopeTasks, id).forEach((descId) => idsToShow.add(descId));
       });
+      return scopeTasks.filter((t) => idsToShow.has(t.id));
+    }
     return scopeTasks.filter((t) => t.projectId === selProj);
   }, [scopeTasks, selProj, isAllView, isStats, isInbox, isReview, isToday]);
 
