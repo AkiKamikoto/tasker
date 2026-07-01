@@ -406,7 +406,7 @@ export default function App() {
       id: crypto.randomUUID(),
       title: taskData.title,
       desc: taskData.desc,
-      dueDate: taskData.date ? `${taskData.date}T${taskData.time || "00:00"}` : "",
+      dueDate: taskData.date ? `${taskData.date}T${taskData.time || "23:59"}` : "",
       reminder: taskData.reminder,
       projectId: taskData.projectId,
       difficulty: taskData.difficulty,
@@ -508,7 +508,7 @@ export default function App() {
     const patch = {
       title: taskData.title,
       desc: taskData.desc,
-      dueDate: taskData.date ? `${taskData.date}T${taskData.time || "00:00"}` : "",
+      dueDate: taskData.date ? `${taskData.date}T${taskData.time || "23:59"}` : "",
       reminder: taskData.reminder,
       projectId: taskData.projectId,
       difficulty: taskData.difficulty,
