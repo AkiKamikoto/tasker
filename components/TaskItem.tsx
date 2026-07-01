@@ -120,7 +120,6 @@ export default function TaskItem({
           borderBottom: dropPos === "after" ? "2px solid var(--accent)" : "2px solid transparent",
           borderLeft: `4px solid ${cfg.color}`,
           opacity: task.completed ? 0.7 : 1,
-          cursor: "grab",
         }}
       >
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
